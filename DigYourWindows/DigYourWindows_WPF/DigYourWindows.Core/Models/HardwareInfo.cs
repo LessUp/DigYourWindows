@@ -11,6 +11,7 @@ public record HardwareInfo
     public List<NetworkAdapterInfo> NetworkAdapters { get; init; } = new();
     public List<UsbDeviceInfo> UsbDevices { get; init; } = new();
     public List<UsbControllerInfo> UsbControllers { get; init; } = new();
+    public List<GpuInfo> Gpus { get; init; } = new();
 }
 
 public record DiskInfo
@@ -43,4 +44,17 @@ public record UsbControllerInfo
     public string Name { get; init; } = string.Empty;
     public string Manufacturer { get; init; } = string.Empty;
     public string Protocol { get; init; } = string.Empty;
+}
+
+public record GpuInfo
+{
+    public string Name { get; init; } = string.Empty;
+    public float Temperature { get; init; }
+    public float Load { get; init; }
+    public float MemoryUsed { get; init; }
+    public float MemoryTotal { get; init; }
+    public float CoreClock { get; init; }
+    public float MemoryClock { get; init; }
+    public float FanSpeed { get; init; }
+    public float Power { get; init; }
 }

@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:vm="clr-namespace:DigYourWindows.UI.ViewModels"
+        xmlns:scottplot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         mc:Ignorable="d"
         Title="DigYourWindows - Windows 深度诊断工具" 
         Height="900" Width="1400"
@@ -27,6 +28,13 @@
         <ui:TitleBar Grid.Row="0" Title="DigYourWindows" Icon="pack://application:,,,/Assets/icon.ico">
             <ui:TitleBar.Header>
                 <StackPanel Orientation="Horizontal" Margin="10,0">
+                    <TextBlock Text="时间范围:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <ComboBox ItemsSource="{Binding AvailableDays}" 
+                             SelectedItem="{Binding SelectedDaysBack}" 
+                             Width="80" 
+                             Margin="0,0,10,0"/>
+                    <TextBlock Text="天" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    
                     <ui:Button Content="刷新数据" 
                               Command="{Binding LoadDataCommand}" 
                               Icon="{ui:SymbolIcon Refresh24}"
@@ -34,6 +42,10 @@
                     <ui:Button Content="导出报告" 
                               Command="{Binding ExportToHtmlCommand}" 
                               Icon="{ui:SymbolIcon DocumentArrowUp24}"
+                              Margin="10,0,0,0"/>
+                    <ui:Button Content="切换主题" 
+                              Command="{Binding ToggleThemeCommand}" 
+                              Icon="{ui:SymbolIcon WeatherMoon24}"
                               Margin="10,0,0,0"/>
                 </StackPanel>
             </ui:TitleBar.Header>
@@ -87,6 +99,72 @@
                     </Grid>
                 </ui:CardExpander>
 
+                <!-- GPU Monitoring -->
+                <ui:CardExpander Header="{Binding HardwareInfo.Gpus.Count, StringFormat='GPU 监控 - {0} 个设备'}" 
+                                Icon="{ui:SymbolIcon ShieldTask24}" 
+                                IsExpanded="True" 
+                                Margin="0,10,0,0">
+                    <ItemsControl ItemsSource="{Binding HardwareInfo.Gpus}" Margin="10">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ui:Card Margin="0,5">
+                                    <Grid Margin="15">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        
+                                        <TextBlock Grid.Row="0" Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                        
+                                        <Grid Grid.Row="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="温度" FontSize="12" Foreground="Gray"/>
+                                                <TextBlock FontSize="18" FontWeight="Bold">
+                                                    <Run Text="{Binding Temperature, StringFormat='{}{0:F1}'}"/>
+                                                    <Run Text="°C" FontSize="14"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="负载" FontSize="12" Foreground="Gray"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Load, StringFormat='{}{0:F1}'}" FontSize="18" FontWeight="Bold"/>
+                                                    <TextBlock Text="%" FontSize="14" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="显存使用" FontSize="12" Foreground="Gray"/>
+                                                <TextBlock FontSize="14" FontWeight="SemiBold">
+                                                    <Run Text="{Binding MemoryUsed, StringFormat='{}{0:F0}'}"/>
+                                                    <Run Text="/"/>
+                                                    <Run Text="{Binding MemoryTotal, StringFormat='{}{0:F0}'}"/>
+                                                    <Run Text=" MB" FontSize="12"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="3">
+                                                <TextBlock Text="功耗" FontSize="12" Foreground="Gray"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Power, StringFormat='{}{0:F1}'}" FontSize="18" FontWeight="Bold"/>
+                                                    <TextBlock Text="W" FontSize="14" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </ui:Card>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ui:CardExpander>
+
                 <!-- Reliability Records -->
                 <ui:CardExpander Header="{Binding ReliabilityRecords.Count, StringFormat='可靠性记录 (最近7天) - {0} 条'}" 
                                 Icon="{ui:SymbolIcon ChartMultiple24}" 
@@ -107,10 +185,18 @@
                 </ui:CardExpander>
 
                 <!-- Event Logs -->
-                <ui:CardExpander Header="{Binding EventLogEntries.Count, StringFormat='错误日志 (最近3天) - {0} 条'}" 
-                                Icon="{ui:SymbolIcon ErrorCircle24}" 
+                <ui:CardExpander Icon="{ui:SymbolIcon ErrorCircle24}" 
                                 IsExpanded="True" 
                                 Margin="0,10,0,0">
+                    <ui:CardExpander.Header>
+                        <TextBlock>
+                            <Run Text="错误日志 (最近"/>
+                            <Run Text="{Binding SelectedDaysBack}"/>
+                            <Run Text="天) - "/>
+                            <Run Text="{Binding EventLogEntries.Count}"/>
+                            <Run Text=" 条"/>
+                        </TextBlock>
+                    </ui:CardExpander.Header>
                     <DataGrid ItemsSource="{Binding EventLogEntries}" 
                              AutoGenerateColumns="False" 
                              IsReadOnly="True"

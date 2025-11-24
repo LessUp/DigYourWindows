@@ -5,6 +5,13 @@ namespace DigYourWindows.Core.Services;
 
 public class HardwareService
 {
+    private readonly GpuMonitorService _gpuMonitor;
+
+    public HardwareService()
+    {
+        _gpuMonitor = new GpuMonitorService();
+    }
+
     public HardwareInfo GetHardwareInfo()
     {
         return new HardwareInfo
@@ -17,7 +24,8 @@ public class HardwareService
             Disks = GetDisks(),
             NetworkAdapters = GetNetworkAdapters(),
             UsbDevices = GetUsbDevices(),
-            UsbControllers = GetUsbControllers()
+            UsbControllers = GetUsbControllers(),
+            Gpus = _gpuMonitor.GetGpuInfo()
         };
     }
 
