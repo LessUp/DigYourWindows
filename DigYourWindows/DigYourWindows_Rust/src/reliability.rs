@@ -1,40 +1,25 @@
-use serde::{Deserialize, Serialize};
-use wmi::{COMLibrary, WMIConnection};
+use crate::wmi::{get_reliability_records as wmi_get_reliability_records};
+use crate::wmi_impl::{get_reliability_records as wmi_impl_get_reliability_records};
+pub use crate::wmi::ReliabilityRecord;
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ReliabilityRecord {
-    #[serde(rename = "TimeGenerated")]
-    pub time_generated: String,
-    #[serde(rename = "ProductName")]
-    pub product_name: Option<String>,
-    #[serde(rename = "Message")]
-    pub message: Option<String>,
-    #[serde(rename = "RecordType")]
-    pub record_type: Option<u32>, // 1=App fail, 2=Win fail, 3=Misc fail, etc.
-    #[serde(rename = "ComputerName")]
-    pub computer_name: Option<String>,
-}
+
 
 pub fn get_reliability_records() -> Vec<ReliabilityRecord> {
-    let com_con = match COMLibrary::new() {
-        Ok(c) => c,
-        Err(_) => return vec![],
-    };
-    let wmi_con = match WMIConnection::new(com_con) {
-        Ok(c) => c,
-        Err(_) => return vec![],
-    };
-
-    // We select all and filter in memory for simplicity, 
-    // as WMI date queries are error prone without exact formatting.
-    // Win32_ReliabilityRecords is typically in root\cimv2
-    let query = "SELECT TimeGenerated, ProductName, Message, RecordType, ComputerName FROM Win32_ReliabilityRecords";
-    
-    match wmi_con.raw_query(query) {
-        Ok(results) => results,
+    // Try WMI implementation first
+    match wmi_impl_get_reliability_records() {
+        Ok(records) => records,
         Err(e) => {
-            eprintln!("Failed to query ReliabilityRecords: {:?}", e);
-            vec![]
+            eprintln!("Warning: Failed to get reliability records from WMI implementation: {:?}. Falling back to mock data.", e);
+            
+            // Fall back to original implementation
+            match wmi_get_reliability_records() {
+                Ok(records) => records,
+                Err(e2) => {
+                    eprintln!("Warning: Failed to get reliability records from fallback: {:?}", e2);
+                    // Final fallback to empty list
+                    vec![]
+                }
+            }
         }
     }
 }

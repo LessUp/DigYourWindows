@@ -54,6 +54,42 @@ cargo run
 
 如果浏览器未自动打开，可以手动双击 `report.html` 或在浏览器中打开该文件。
 
+## 命令行参数概览
+
+可执行文件支持如下常用参数（更详细帮助可执行 `DigYourWindows_Rust.exe --help` 查看）：
+
+```text
+DigYourWindows_Rust.exe [OPTIONS]
+
+Options:
+  -d, --days <DAYS>          查询事件日志的天数，例如 1 / 3 / 7 / 30，默认 3
+  -f, --format <FORMAT>      输出格式：html / json / both，默认 html
+  -o, --output <PATH>        输出文件名（不含扩展名），默认 report
+      --output-dir <DIR>     输出目录（默认当前目录）
+      --no-open              生成报告后不自动在浏览器中打开 HTML
+  -h, --help                 显示帮助信息
+```
+
+示例：
+
+- 只生成最近 7 天的 HTML 报告：
+
+  ```powershell
+  .\DigYourWindows_Rust.exe --days 7 --format html --output weekly_report
+  ```
+
+- 只导出 JSON 报告到指定目录：
+
+  ```powershell
+  .\DigYourWindows_Rust.exe --days 30 --format json --output-dir D:\Reports --output win_diagnostics
+  ```
+
+- 同时生成 HTML + JSON 报告：
+
+  ```powershell
+  .\DigYourWindows_Rust.exe --days 7 --format both --output system_health
+  ```
+
 ## 注意事项
 
 - 某些信息（尤其是系统事件日志）可能需要 **管理员权限** 才能完整读取，建议以管理员身份打开 PowerShell/终端后再 `cargo run`。

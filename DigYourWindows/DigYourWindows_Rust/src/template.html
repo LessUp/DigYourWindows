@@ -21,6 +21,75 @@
             <p class="col-md-8 fs-4 text-muted">生成时间: {{ timestamp }}</p>
         </header>
 
+        <!-- System Health Summary -->
+        <section>
+            <h2 class="section-title">系统健康概览</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h6 class="text-muted mb-1">总体健康评分</h6>
+                        <p class="display-6 text-success mb-0">
+                            {{ performance.system_health_score | round(precision=1) }}
+                        </p>
+                        <small class="text-muted">满分 100，分值越高越好</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h6 class="text-muted mb-1">稳定性</h6>
+                        <p class="h2 mb-0">
+                            {{ performance.stability_score | round(precision=1) }}
+                        </p>
+                        <small class="text-muted">
+                            错误 {{ event_analysis.error_count }} 个，
+                            警告 {{ event_analysis.warning_count }} 个
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h6 class="text-muted mb-1">性能</h6>
+                        <p class="h2 mb-0">
+                            {{ performance.performance_score | round(precision=1) }}
+                        </p>
+                        <small class="text-muted">
+                            CPU 核心数 {{ hardware.cpu_count }}，
+                            内存 {{ (hardware.total_memory / 1024 / 1024 / 1024) | round(precision=1) }} GB
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h6 class="text-muted mb-1">磁盘与内存</h6>
+                        <p class="h2 mb-0">
+                            {{ performance.disk_health_score | round(precision=1) }}
+                        </p>
+                        <small class="text-muted">
+                            内存评分 {{ performance.memory_usage_score | round(precision=1) }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recommendations -->
+        <section>
+            <h2 class="section-title">优化建议</h2>
+            {% if performance.recommendations | length > 0 %}
+            <ul class="list-group mb-3">
+                {% for rec in performance.recommendations %}
+                <li class="list-group-item">
+                    {{ rec }}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="alert alert-success" role="alert">
+                当前未发现明显的性能或稳定性问题，无需特别优化。
+            </div>
+            {% endif %}
+        </section>
+
         <!-- System Info -->
         <section>
             <h2 class="section-title">系统概览</h2>
@@ -52,6 +121,77 @@
             </div>
         </section>
 
+        <!-- Performance Analysis -->
+        <section>
+            <h2 class="section-title">系统性能分析</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card text-center p-4">
+                        <h5>系统健康评分</h5>
+                        <div class="progress mb-3" style="height: 30px;">
+                            {% set health_color = "bg-danger" if performance.system_health_score < 60 %}{% if performance.system_health_score >= 60 and performance.system_health_score < 80 %}bg-warning{% endif %}{% if performance.system_health_score >= 80 %}bg-success{% endif %}
+                            <div class="progress-bar {{ health_color }}" role="progressbar" style="width: {{ performance.system_health_score }}%">
+                                {{ performance.system_health_score | round(precision=1) }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">综合系统健康状况</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-center p-4">
+                        <h5>系统稳定性评分</h5>
+                        <div class="progress mb-3" style="height: 30px;">
+                            {% set stability_color = "bg-danger" if performance.stability_score < 60 %}{% if performance.stability_score >= 60 and performance.stability_score < 80 %}bg-warning{% endif %}{% if performance.stability_score >= 80 %}bg-success{% endif %}
+                            <div class="progress-bar {{ stability_color }}" role="progressbar" style="width: {{ performance.stability_score }}%">
+                                {{ performance.stability_score | round(precision=1) }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">基于错误事件和可靠性记录</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card text-center p-4">
+                        <h5>性能评分</h5>
+                        <div class="progress mb-3" style="height: 30px;">
+                            {% set perf_color = "bg-danger" if performance.performance_score < 60 %}{% if performance.performance_score >= 60 and performance.performance_score < 80 %}bg-warning{% endif %}{% if performance.performance_score >= 80 %}bg-success{% endif %}
+                            <div class="progress-bar {{ perf_color }}" role="progressbar" style="width: {{ performance.performance_score }}%">
+                                {{ performance.performance_score | round(precision=1) }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">CPU、内存和其他硬件性能</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-center p-4">
+                        <h5>磁盘健康评分</h5>
+                        <div class="progress mb-3" style="height: 30px;">
+                            {% set disk_color = "bg-danger" if performance.disk_health_score < 60 %}{% if performance.disk_health_score >= 60 and performance.disk_health_score < 80 %}bg-warning{% endif %}{% if performance.disk_health_score >= 80 %}bg-success{% endif %}
+                            <div class="progress-bar {{ disk_color }}" role="progressbar" style="width: {{ performance.disk_health_score }}%">
+                                {{ performance.disk_health_score | round(precision=1) }}%
+                            </div>
+                        </div>
+                        <p class="text-muted">基于磁盘空间和使用情况</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="card p-4">
+                        <h5>性能建议</h5>
+                        <ul class="list-group list-group-flush">
+                            {% for recommendation in performance.recommendations %}
+                            <li class="list-group-item">{{ recommendation }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Reliability -->
         <section>
             <h2 class="section-title">Windows 可靠性趋势</h2>
@@ -62,9 +202,84 @@
             </div>
         </section>
 
-        <!-- Errors -->
+        <!-- Event Analysis -->
         <section>
-            <h2 class="section-title">最近3天错误日志 ({{ events | length }})</h2>
+            <h2 class="section-title">事件日志分析</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>总事件数</h5>
+                        <p class="lead">{{ event_analysis.total_events }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>错误事件</h5>
+                        <p class="lead text-danger">{{ event_analysis.error_count }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>警告事件</h5>
+                        <p class="lead text-warning">{{ event_analysis.warning_count }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>关键事件</h5>
+                        <p class="lead text-danger">{{ event_analysis.critical_events | length }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5>主要事件来源</h5>
+                        <canvas id="sourcesChart" height="150"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-3">
+                        <h5>事件日志分布</h5>
+                        <canvas id="logsChart" height="150"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Critical Events -->
+        {% if event_analysis.critical_events | length > 0 %}
+        <section>
+            <h2 class="section-title">关键系统错误</h2>
+            <div class="card p-3">
+                <table id="criticalEventsTable" class="table table-striped table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>来源</th>
+                            <th>类型</th>
+                            <th>消息</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in event_analysis.critical_events %}
+                        <tr>
+                            <td style="white-space:nowrap;">{{ event.time_generated | default(value="-") }}</td>
+                            <td>{{ event.source_name | default(value="Unknown") }}</td>
+                            <td><span class="badge bg-danger">{{ event.event_type | default(value="Error") }}</span></td>
+                            <td class="text-break">{{ event.message | default(value="") | truncate(length=200) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- All Events -->
+        <section>
+            <h2 class="section-title">最近3天所有事件日志 ({{ events | length }})</h2>
             <div class="card p-3">
                 <table id="eventsTable" class="table table-striped table-hover" style="width:100%">
                     <thead>
@@ -78,10 +293,19 @@
                     <tbody>
                         {% for event in events %}
                         <tr>
-                            <td style="white-space:nowrap;">{{ event.TimeGenerated | slice(start=0, end=14) }}</td>
-                            <td>{{ event.SourceName | default(value="Unknown") }}</td>
-                            <td><span class="badge bg-danger">{{ event.Type | default(value="Error") }}</span></td>
-                            <td class="text-break">{{ event.Message | default(value="") | truncate(length=200) }}</td>
+                            <td style="white-space:nowrap;">{{ event.time_generated | default(value="-") }}</td>
+                            <td>{{ event.source_name | default(value="Unknown") }}</td>
+                            <td>
+                                {% if event.event_type == "Error" %}
+                                    {% set event_color = "bg-danger" %}
+                                {% elif event.event_type == "Warning" %}
+                                    {% set event_color = "bg-warning" %}
+                                {% else %}
+                                    {% set event_color = "bg-info" %}
+                                {% endif %}
+                                <span class="badge {{ event_color }}">{{ event.event_type | default(value="Unknown") }}</span>
+                            </td>
+                            <td class="text-break">{{ event.message | default(value="") | truncate(length=200) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -134,9 +358,9 @@
                     <tbody>
                         {% for ctrl in hardware.usb_controllers %}
                         <tr>
-                            <td>{{ ctrl.Name | default(value="-") }}</td>
-                            <td>{{ ctrl.Manufacturer | default(value="-") }}</td>
-                            <td>{{ ctrl.Caption | default(value="-") }}</td>
+                            <td>{{ ctrl.name | default(value="-") }}</td>
+                            <td>{{ ctrl.manufacturer | default(value="-") }}</td>
+                            <td>{{ ctrl.caption | default(value="-") }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -156,9 +380,9 @@
                     <tbody>
                         {% for usb in hardware.usb_devices %}
                         <tr>
-                            <td><small>{{ usb.DeviceID }}</small></td>
-                            <td>{{ usb.Name | default(value="-") }}</td>
-                            <td>{{ usb.Description | default(value="-") }}</td>
+                            <td><small>{{ usb.device_id }}</small></td>
+                            <td>{{ usb.name | default(value="-") }}</td>
+                            <td>{{ usb.description | default(value="-") }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -175,6 +399,12 @@
             $('#eventsTable').DataTable({
                 "order": [[ 0, "desc" ]]
             });
+            
+            {% if event_analysis.critical_events | length > 0 %}
+            $('#criticalEventsTable').DataTable({
+                "order": [[ 0, "desc" ]]
+            });
+            {% endif %}
         });
 
         // Reliability Chart Data
@@ -190,24 +420,24 @@
         // Process data for chart: Count failures by Date
         const failuresByDate = {};
         reliabilityData.forEach(r => {
-            const date = r.TimeGenerated.substring(0, 8); // YYYYMMDD
+            const date = r.time_generated.substring(0, 10); // YYYY-MM-DD (assuming ISO format)
             // Format to YYYY-MM-DD
             const dateStr = `${date.substring(0,4)}-${date.substring(4,6)}-${date.substring(6,8)}`;
             if (!failuresByDate[dateStr]) failuresByDate[dateStr] = 0;
             failuresByDate[dateStr]++;
         });
 
-        const labels = Object.keys(failuresByDate).sort();
-        const dataPoints = labels.map(d => failuresByDate[d]);
+        const reliabilityLabels = Object.keys(failuresByDate).sort();
+        const reliabilityDataPoints = reliabilityLabels.map(d => failuresByDate[d]);
 
-        const ctx = document.getElementById('reliabilityChart').getContext('2d');
-        new Chart(ctx, {
+        const reliabilityCtx = document.getElementById('reliabilityChart').getContext('2d');
+        new Chart(reliabilityCtx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: reliabilityLabels,
                 datasets: [{
                     label: '每日故障记录数',
-                    data: dataPoints,
+                    data: reliabilityDataPoints,
                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
                     borderColor: 'rgba(255, 99, 132, 1)',
                     borderWidth: 1
@@ -220,6 +450,78 @@
                         precision: 0
                     }
                 }
+            }
+        });
+
+        // Sources Chart
+        const sourcesData = {{ event_analysis.top_sources | json_encode() | safe }};
+        const sourcesLabels = sourcesData.map(s => s[0]);
+        const sourcesCounts = sourcesData.map(s => s[1]);
+
+        const sourcesCtx = document.getElementById('sourcesChart').getContext('2d');
+        new Chart(sourcesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: sourcesLabels,
+                datasets: [{
+                    data: sourcesCounts,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 205, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 205, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Log Files Chart
+        const logsData = {{ event_analysis.top_log_files | json_encode() | safe }};
+        const logsLabels = logsData.map(l => l[0]);
+        const logsCounts = logsData.map(l => l[1]);
+
+        const logsCtx = document.getElementById('logsChart').getContext('2d');
+        new Chart(logsCtx, {
+            type: 'pie',
+            data: {
+                labels: logsLabels,
+                datasets: [{
+                    data: logsCounts,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(255, 205, 86, 0.2)',
+                        'rgba(153, 102, 255, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 205, 86, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
             }
         });
     </script>

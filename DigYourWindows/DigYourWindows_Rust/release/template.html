@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigYourWindows 深度诊断报告</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section-title { margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid #0d6efd; padding-bottom: 10px; }
+        .chart-container { position: relative; height: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <header class="pb-3 mb-4 border-bottom">
+            <h1 class="display-5 fw-bold text-primary">DigYourWindows 诊断报告</h1>
+            <p class="col-md-8 fs-4 text-muted">生成时间: {{ timestamp }}</p>
+        </header>
+
+        <!-- System Info -->
+        <section>
+            <h2 class="section-title">系统概览</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>主机名</h5>
+                        <p class="lead">{{ hardware.host_name }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>操作系统</h5>
+                        <p class="lead">{{ hardware.os_version }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>CPU</h5>
+                        <p class="small">{{ hardware.cpu_brand }} ({{ hardware.cpu_count }} Cores)</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center p-3">
+                        <h5>内存</h5>
+                        <p class="lead">{{ (hardware.total_memory / 1024 / 1024 / 1024) | round(precision=2) }} GB</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reliability -->
+        <section>
+            <h2 class="section-title">Windows 可靠性趋势</h2>
+            <div class="card p-3">
+                <div class="chart-container">
+                    <canvas id="reliabilityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Errors -->
+        <section>
+            <h2 class="section-title">最近3天错误日志 ({{ events | length }})</h2>
+            <div class="card p-3">
+                <table id="eventsTable" class="table table-striped table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>来源</th>
+                            <th>类型</th>
+                            <th>消息</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td style="white-space:nowrap;">{{ event.time_generated | default(value="-") }}</td>
+                            <td>{{ event.source_name | default(value="Unknown") }}</td>
+                            <td><span class="badge bg-danger">{{ event.event_type | default(value="Error") }}</span></td>
+                            <td class="text-break">{{ event.message | default(value="") | truncate(length=200) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Hardware Details -->
+        <section>
+            <h2 class="section-title">硬件详情</h2>
+            
+            <h4>磁盘</h4>
+            <div class="row mb-3">
+                {% for disk in hardware.disks %}
+                <div class="col-md-4">
+                    <div class="card p-3">
+                        <h6>{{ disk.name }} ({{ disk.file_system }})</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" style="width: {{ ((disk.total_space - disk.available_space) / disk.total_space * 100) | round }}%"></div>
+                        </div>
+                        <small>可用: {{ (disk.available_space / 1024 / 1024 / 1024) | round(precision=2) }} GB / 总计: {{ (disk.total_space / 1024 / 1024 / 1024) | round(precision=2) }} GB</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4>网络适配器</h4>
+            <ul class="list-group mb-3">
+                {% for net in hardware.networks %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ net.name }}</strong><br>
+                        <small class="text-muted">{{ net.mac_address }}</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">{{ net.ip_networks | first | default(value="No IP") }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <h4>USB 控制器</h4>
+            <div class="table-responsive card p-3 mb-3">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>制造商</th>
+                            <th>标题</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ctrl in hardware.usb_controllers %}
+                        <tr>
+                            <td>{{ ctrl.name | default(value="-") }}</td>
+                            <td>{{ ctrl.manufacturer | default(value="-") }}</td>
+                            <td>{{ ctrl.caption | default(value="-") }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>USB 设备</h4>
+            <div class="table-responsive card p-3">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>设备 ID</th>
+                            <th>名称</th>
+                            <th>描述</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usb in hardware.usb_devices %}
+                        <tr>
+                            <td><small>{{ usb.device_id }}</small></td>
+                            <td>{{ usb.name | default(value="-") }}</td>
+                            <td>{{ usb.description | default(value="-") }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#eventsTable').DataTable({
+                "order": [[ 0, "desc" ]]
+            });
+        });
+
+        // Reliability Chart Data
+        // Note: Since we only passed raw records, we might not have a clean 1-10 score unless we calculate it or find it.
+        // Win32_ReliabilityStabilityMetrics contains the SystemStabilityIndex (1-10). 
+        // Win32_ReliabilityRecords contains the events.
+        // For this chart, we will plot the number of failures per day as a proxy if we don't have the index.
+        // OR we can just leave it blank if we didn't fetch Metrics.
+        // Let's try to use the records to show "Failures over time".
+        
+        const reliabilityData = {{ reliability | json_encode() | safe }};
+        
+        // Process data for chart: Count failures by Date
+        const failuresByDate = {};
+        reliabilityData.forEach(r => {
+            const date = r.time_generated.substring(0, 10); // YYYY-MM-DD (assuming ISO format)
+            // Format to YYYY-MM-DD
+            const dateStr = `${date.substring(0,4)}-${date.substring(4,6)}-${date.substring(6,8)}`;
+            if (!failuresByDate[dateStr]) failuresByDate[dateStr] = 0;
+            failuresByDate[dateStr]++;
+        });
+
+        const labels = Object.keys(failuresByDate).sort();
+        const dataPoints = labels.map(d => failuresByDate[d]);
+
+        const ctx = document.getElementById('reliabilityChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '每日故障记录数',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        precision: 0
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
