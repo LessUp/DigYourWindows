@@ -99,6 +99,149 @@
                     </Grid>
                 </ui:CardExpander>
 
+                <!-- Performance Analysis -->
+                <ui:CardExpander Header="系统性能分析" Icon="{ui:SymbolIcon LightningBolt24}" IsExpanded="True" Margin="0,10,0,0">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Performance Scores -->
+                        <Grid Grid.Row="0" Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <ui:Card Grid.Column="0" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="系统健康评分" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{Binding PerformanceAnalysis.HealthColor}"/>
+                                            </Style>
+                                        </TextBlock.Style>
+                                        <Run Text="{Binding PerformanceAnalysis.SystemHealthScore, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="/100"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding PerformanceAnalysis.HealthGrade}" HorizontalAlignment="Center" FontSize="12" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="1" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="稳定性评分" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.StabilityScore, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="/100"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="2" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="性能评分" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.PerformanceScore, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="/100"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="3" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="内存评分" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.MemoryUsageScore, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="/100"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="4" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="磁盘健康" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.DiskHealthScore, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="/100"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                        </Grid>
+                        
+                        <!-- Additional Metrics -->
+                        <Grid Grid.Row="1" Margin="0,0,0,15">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <ui:Card Grid.Column="0" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="关键问题" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" Foreground="Red" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.CriticalIssuesCount, StringFormat='{}{0}'}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="1" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="警告数量" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" Foreground="Orange" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.WarningsCount, StringFormat='{}{0}'}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <ui:Card Grid.Column="2" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="系统运行时间" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="{Binding PerformanceAnalysis.SystemUptimeDays, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="天"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                            
+                            <!-- Placeholder for future metrics -->
+                            <ui:Card Grid.Column="3" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="CPU 温度" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <TextBlock FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
+                                        <Run Text="N/A"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                        </Grid>
+                        
+                        <!-- Recommendations -->
+                        <ui:Card Grid.Row="2" Margin="5" Visibility="{Binding PerformanceAnalysis.Recommendations.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="优化建议" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,10"/>
+                                <ItemsControl ItemsSource="{Binding PerformanceAnalysis.Recommendations}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                                <ui:SymbolIcon Symbol="Info16" Foreground="Blue" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ui:Card>
+                    </Grid>
+                </ui:CardExpander>
+
                 <!-- GPU Monitoring -->
                 <ui:CardExpander Header="{Binding HardwareInfo.Gpus.Count, StringFormat='GPU 监控 - {0} 个设备'}" 
                                 Icon="{ui:SymbolIcon ShieldTask24}" 

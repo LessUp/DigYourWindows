@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DigYourWindows.UI"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:conv="clr-namespace:DigYourWindows.UI.Converters"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -13,6 +14,9 @@
             
             <!-- 添加 BooleanToVisibility 转换器 -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            
+            <!-- 添加 CountToVisibility 转换器 -->
+            <conv:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

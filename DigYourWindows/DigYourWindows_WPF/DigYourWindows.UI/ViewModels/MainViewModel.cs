@@ -15,6 +15,7 @@ public partial class MainViewModel : ObservableObject
     private readonly HardwareService _hardwareService;
     private readonly ReliabilityService _reliabilityService;
     private readonly EventLogService _eventLogService;
+    private readonly PerformanceService _performanceService;
 
     [ObservableProperty]
     private HardwareInfo? _hardwareInfo;
@@ -24,6 +25,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private ObservableCollection<DigYourWindows.Core.Models.EventLogEntry> _eventLogEntries = new();
+
+    [ObservableProperty]
+    private PerformanceAnalysis? _performanceAnalysis;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -44,6 +48,7 @@ public partial class MainViewModel : ObservableObject
         _hardwareService = new HardwareService();
         _reliabilityService = new ReliabilityService();
         _eventLogService = new EventLogService();
+        _performanceService = new PerformanceService();
         
         PropertyChanged += (s, e) =>
         {
@@ -85,9 +90,24 @@ public partial class MainViewModel : ObservableObject
                 foreach (var evt in events)
                     EventLogEntries.Add(evt);
             });
+
+            // Performance Analysis
+            if (HardwareInfo != null)
+            {
+                StatusMessage = "正在进行性能分析...";
+                var eventsList = EventLogEntries.ToList();
+                var reliabilityList = ReliabilityRecords.ToList();
+                
+                var analysis = _performanceService.AnalyzeSystemPerformance(HardwareInfo, eventsList, reliabilityList);
+                App.Current.Dispatcher.Invoke(() =>
+                {
+                    PerformanceAnalysis = analysis;
+                });
+            }
         });
 
-        StatusMessage = $"数据加载完成 | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count}";
+        var performanceScore = PerformanceAnalysis?.SystemHealthScore ?? 0;
+        StatusMessage = $"数据加载完成 | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count} | 系统健康评分: {performanceScore:F0}/100";
         IsLoading = false;
     }
 
@@ -166,6 +186,84 @@ public partial class MainViewModel : ObservableObject
         sb.AppendLine("            </div>");
         sb.AppendLine("        </div>");
         sb.AppendLine("    </div>");
+
+        // 性能分析
+        if (PerformanceAnalysis != null)
+        {
+            sb.AppendLine("    <div class='card'>");
+            sb.AppendLine("        <div class='card-header'><h3>系统性能分析</h3></div>");
+            sb.AppendLine("        <div class='card-body'>");
+            sb.AppendLine("            <div class='row mb-3'>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>系统健康评分</h5>");
+            sb.AppendLine($"                        <div class='metric' style='color: {PerformanceAnalysis.HealthColor}'>{PerformanceAnalysis.SystemHealthScore:F0}/100</div>");
+            sb.AppendLine($"                        <span class='badge bg-secondary'>{PerformanceAnalysis.HealthGrade}</span>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>稳定性评分</h5>");
+            sb.AppendLine($"                        <div class='metric'>{PerformanceAnalysis.StabilityScore:F0}/100</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>性能评分</h5>");
+            sb.AppendLine($"                        <div class='metric'>{PerformanceAnalysis.PerformanceScore:F0}/100</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>内存评分</h5>");
+            sb.AppendLine($"                        <div class='metric'>{PerformanceAnalysis.MemoryUsageScore:F0}/100</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("            </div>");
+            sb.AppendLine("            <div class='row'>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>磁盘健康</h5>");
+            sb.AppendLine($"                        <div class='metric'>{PerformanceAnalysis.DiskHealthScore:F0}/100</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>关键问题</h5>");
+            sb.AppendLine($"                        <div class='metric text-danger'>{PerformanceAnalysis.CriticalIssuesCount}</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>警告数量</h5>");
+            sb.AppendLine($"                        <div class='metric text-warning'>{PerformanceAnalysis.WarningsCount}</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class='col-md-3'>");
+            sb.AppendLine("                    <div class='card text-center p-3'>");
+            sb.AppendLine("                        <h5>系统运行时间</h5>");
+            sb.AppendLine($"                        <div class='metric'>{PerformanceAnalysis.SystemUptimeDays:F0} 天</div>");
+            sb.AppendLine("                    </div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("            </div>");
+
+            // 优化建议
+            if (PerformanceAnalysis.Recommendations.Any())
+            {
+                sb.AppendLine("            <div class='mt-4'>");
+                sb.AppendLine("                <h5>优化建议</h5>");
+                sb.AppendLine("                <ul>");
+                foreach (var recommendation in PerformanceAnalysis.Recommendations)
+                {
+                    sb.AppendLine($"                    <li>{recommendation}</li>");
+                }
+                sb.AppendLine("                </ul>");
+                sb.AppendLine("            </div>");
+            }
+
+            sb.AppendLine("        </div>");
+            sb.AppendLine("    </div>");
+        }
 
         // GPU信息
         if (HardwareInfo?.Gpus?.Count > 0)
