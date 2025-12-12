@@ -5,8 +5,10 @@ mod report;
 mod simple_report;
 mod wmi;
 mod wmi_impl;
+mod wmi_provider;
 mod logging;
 mod performance;
+pub mod models;
 
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;

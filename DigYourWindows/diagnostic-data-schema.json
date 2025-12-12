@@ -1,0 +1,425 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://digyourwindows.com/schemas/diagnostic-data.json",
+    "title": "DiagnosticData",
+    "description": "Complete diagnostic data collected from a Windows system",
+    "type": "object",
+    "required": [
+        "hardware",
+        "reliability",
+        "events",
+        "performance",
+        "collectedAt"
+    ],
+    "properties": {
+        "hardware": {
+            "$ref": "#/definitions/HardwareData"
+        },
+        "reliability": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/ReliabilityRecord"
+            }
+        },
+        "events": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/LogEvent"
+            }
+        },
+        "performance": {
+            "$ref": "#/definitions/PerformanceAnalysis"
+        },
+        "collectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the data was collected"
+        }
+    },
+    "definitions": {
+        "HardwareData": {
+            "type": "object",
+            "required": [
+                "computerName",
+                "osVersion",
+                "cpuBrand",
+                "cpuCores",
+                "totalMemory",
+                "disks",
+                "networkAdapters",
+                "usbDevices",
+                "usbControllers",
+                "gpus"
+            ],
+            "properties": {
+                "computerName": {
+                    "type": "string",
+                    "description": "Computer name"
+                },
+                "osVersion": {
+                    "type": "string",
+                    "description": "Operating system version"
+                },
+                "cpuBrand": {
+                    "type": "string",
+                    "description": "CPU brand and model"
+                },
+                "cpuCores": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of CPU cores"
+                },
+                "totalMemory": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total system memory in bytes"
+                },
+                "disks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DiskInfo"
+                    }
+                },
+                "networkAdapters": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/NetworkAdapter"
+                    }
+                },
+                "usbDevices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/UsbDevice"
+                    }
+                },
+                "usbControllers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/UsbController"
+                    }
+                },
+                "gpus": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/GpuInfo"
+                    }
+                }
+            }
+        },
+        "DiskInfo": {
+            "type": "object",
+            "required": [
+                "name",
+                "fileSystem",
+                "totalSpace",
+                "availableSpace"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Disk name or mount point"
+                },
+                "fileSystem": {
+                    "type": "string",
+                    "description": "File system type (e.g., NTFS, FAT32)"
+                },
+                "totalSpace": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Total disk space in bytes"
+                },
+                "availableSpace": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Available disk space in bytes"
+                }
+            }
+        },
+        "NetworkAdapter": {
+            "type": "object",
+            "required": [
+                "name",
+                "macAddress",
+                "ipAddresses"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Network adapter name"
+                },
+                "macAddress": {
+                    "type": "string",
+                    "description": "MAC address"
+                },
+                "ipAddresses": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of IP addresses"
+                }
+            }
+        },
+        "UsbDevice": {
+            "type": "object",
+            "required": [
+                "deviceId"
+            ],
+            "properties": {
+                "deviceId": {
+                    "type": "string",
+                    "description": "USB device ID"
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Device name"
+                },
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Device description"
+                },
+                "manufacturer": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Device manufacturer"
+                },
+                "pnpDeviceId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Plug and Play device ID"
+                },
+                "status": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Device status"
+                }
+            }
+        },
+        "UsbController": {
+            "type": "object",
+            "required": [
+                "deviceId"
+            ],
+            "properties": {
+                "deviceId": {
+                    "type": "string",
+                    "description": "USB controller device ID"
+                },
+                "name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Controller name"
+                },
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Controller description"
+                },
+                "manufacturer": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Controller manufacturer"
+                },
+                "caption": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Controller caption"
+                },
+                "protocolVersion": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "USB protocol version (e.g., USB 2.0, USB 3.0)"
+                }
+            }
+        },
+        "GpuInfo": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "GPU name"
+                },
+                "driverVersion": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "GPU driver version"
+                },
+                "videoMemory": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 0,
+                    "description": "Video memory in bytes"
+                }
+            }
+        },
+        "ReliabilityRecord": {
+            "type": "object",
+            "required": [
+                "timestamp",
+                "sourceName",
+                "message",
+                "eventType"
+            ],
+            "properties": {
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the reliability event occurred"
+                },
+                "sourceName": {
+                    "type": "string",
+                    "description": "Source of the reliability event"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Event message"
+                },
+                "eventType": {
+                    "type": "string",
+                    "description": "Type of reliability event"
+                }
+            }
+        },
+        "LogEvent": {
+            "type": "object",
+            "required": [
+                "timeGenerated",
+                "logFile",
+                "sourceName",
+                "eventType",
+                "eventId",
+                "message"
+            ],
+            "properties": {
+                "timeGenerated": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the event was generated"
+                },
+                "logFile": {
+                    "type": "string",
+                    "description": "Log file name (e.g., System, Application)"
+                },
+                "sourceName": {
+                    "type": "string",
+                    "description": "Event source name"
+                },
+                "eventType": {
+                    "type": "string",
+                    "description": "Event type (e.g., Error, Warning, Information)"
+                },
+                "eventId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Event ID number"
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Event message"
+                }
+            }
+        },
+        "PerformanceAnalysis": {
+            "type": "object",
+            "required": [
+                "systemHealthScore",
+                "stabilityScore",
+                "performanceScore",
+                "memoryUsageScore",
+                "diskHealthScore",
+                "criticalIssuesCount",
+                "warningsCount",
+                "recommendations",
+                "healthGrade",
+                "healthColor"
+            ],
+            "properties": {
+                "systemHealthScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Overall system health score (0-100)"
+                },
+                "stabilityScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "System stability score (0-100)"
+                },
+                "performanceScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "System performance score (0-100)"
+                },
+                "memoryUsageScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Memory usage score (0-100)"
+                },
+                "diskHealthScore": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Disk health score (0-100)"
+                },
+                "criticalIssuesCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of critical issues found"
+                },
+                "warningsCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Number of warnings found"
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of recommendations for system improvement"
+                },
+                "healthGrade": {
+                    "type": "string",
+                    "description": "Health grade description (e.g., Excellent, Good, Fair, Poor, Critical)"
+                },
+                "healthColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$",
+                    "description": "Color code for health grade visualization"
+                }
+            }
+        }
+    }
+}
