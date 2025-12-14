@@ -1,47 +1,6 @@
 # Test Infrastructure Setup Summary
 
-This document summarizes the testing infrastructure that has been set up for both the Rust CLI and C# WPF projects.
-
-## Rust CLI Testing Infrastructure
-
-### Dependencies Added
-- **proptest** v1.5 - Property-based testing framework
-
-### Directory Structure
-```
-DigYourWindows_Rust/
-├── tests/
-│   ├── unit/          # Unit tests
-│   ├── property/      # Property-based tests
-│   ├── integration/   # Integration tests
-│   ├── sample_property_test.rs  # Sample test demonstrating setup
-│   └── README.md      # Documentation
-└── proptest.toml      # Configuration file
-```
-
-### Configuration
-- **Test cases per property**: 100 (minimum)
-- **Max shrink iterations**: 1000
-- **Timeout per test**: 5000ms
-- Configuration file: `proptest.toml`
-
-### Running Tests
-```bash
-# Run all tests
-cargo test
-
-# Run specific test file
-cargo test sample_property_test
-
-# Run with verbose output
-cargo test -- --nocapture
-```
-
-### Test Results
-✅ All sample tests passing (3 tests)
-- Basic unit test
-- Property test for configuration verification
-- Property test for addition commutativity
+This document summarizes the testing infrastructure that has been set up for the C# WPF project.
 
 ## C# WPF Testing Infrastructure
 
@@ -84,7 +43,7 @@ dotnet test --filter "FullyQualifiedName~SamplePropertyTests"
 ```
 
 ### Test Results
-✅ All sample tests passing (6 tests)
+ All sample tests passing (6 tests)
 - 1 basic unit test
 - 3 parameterized unit tests
 - 2 property-based tests
@@ -108,7 +67,6 @@ This testing infrastructure validates the following requirements from the specif
 
 ## Notes
 
-- Both test infrastructures are configured to run minimum 100 iterations per property test
+- Property-based tests are configured to run minimum 100 iterations per test
 - Sample tests are provided to verify the setup and can be removed once real tests are added
-- Test directory structure follows the same pattern in both projects for consistency
 - All tests are currently passing and ready for development

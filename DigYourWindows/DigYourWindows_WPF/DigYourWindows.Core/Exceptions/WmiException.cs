@@ -18,7 +18,7 @@ public class WmiException : Exception
     /// <summary>
     /// The WMI query that was being executed when the error occurred.
     /// </summary>
-    public string? Query { get; }
+    public string? Query { get; private set; }
 
     public WmiException(string message) : base(message)
     {

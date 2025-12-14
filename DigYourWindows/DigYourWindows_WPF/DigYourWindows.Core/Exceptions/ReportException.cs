@@ -83,7 +83,7 @@ public class ReportException : Exception
     /// <summary>
     /// Creates a MissingField exception.
     /// </summary>
-    public static ReportException MissingField(string field) =>
+    public static ReportException MissingRequiredField(string field) =>
         new(ReportErrorType.MissingField, 
             $"Missing required field: {field}",
             null, field);

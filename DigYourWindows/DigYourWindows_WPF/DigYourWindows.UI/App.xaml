@@ -4,7 +4,7 @@
              xmlns:local="clr-namespace:DigYourWindows.UI"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:conv="clr-namespace:DigYourWindows.UI.Converters"
-             StartupUri="MainWindow.xaml">
+             ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

@@ -16,6 +16,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ReliabilityService _reliabilityService;
     private readonly EventLogService _eventLogService;
     private readonly PerformanceService _performanceService;
+    private bool _reloadRequested;
 
     [ObservableProperty]
     private HardwareInfo? _hardwareInfo;
@@ -43,72 +44,89 @@ public partial class MainViewModel : ObservableObject
 
     public List<int> AvailableDays { get; } = new() { 1, 3, 7, 30 };
 
-    public MainViewModel()
+    public MainViewModel(
+        HardwareService hardwareService,
+        ReliabilityService reliabilityService,
+        EventLogService eventLogService,
+        PerformanceService performanceService)
     {
-        _hardwareService = new HardwareService();
-        _reliabilityService = new ReliabilityService();
-        _eventLogService = new EventLogService();
-        _performanceService = new PerformanceService();
-        
-        PropertyChanged += (s, e) =>
+        _hardwareService = hardwareService;
+        _reliabilityService = reliabilityService;
+        _eventLogService = eventLogService;
+        _performanceService = performanceService;
+    }
+
+    partial void OnSelectedDaysBackChanged(int value)
+    {
+        if (IsLoading)
         {
-            if (e.PropertyName == nameof(SelectedDaysBack))
-            {
-                _ = LoadDataAsync();
-            }
-        };
+            _reloadRequested = true;
+            return;
+        }
+
+        _ = LoadDataAsync();
     }
 
     [RelayCommand]
     private async Task LoadDataAsync()
     {
+        if (IsLoading)
+        {
+            return;
+        }
+
         IsLoading = true;
         StatusMessage = "正在加载数据...";
 
-        await Task.Run(() =>
+        try
         {
-            // Hardware
             StatusMessage = "正在获取硬件信息...";
-            HardwareInfo = _hardwareService.GetHardwareInfo();
+            var hardware = await Task.Run(() => _hardwareService.GetHardwareInfo());
 
-            // Reliability
             StatusMessage = "正在获取可靠性记录...";
-            var reliability = _reliabilityService.GetReliabilityRecords(7);
-            App.Current.Dispatcher.Invoke(() =>
-            {
-                ReliabilityRecords.Clear();
-                foreach (var record in reliability)
-                    ReliabilityRecords.Add(record);
-            });
+            var reliability = await Task.Run(() => _reliabilityService.GetReliabilityRecords(7));
 
-            // Events
-            StatusMessage = $"正在获取事件日志 (最近{SelectedDaysBack}天)...";
-            var events = _eventLogService.GetErrorEvents(SelectedDaysBack);
-            App.Current.Dispatcher.Invoke(() =>
-            {
-                EventLogEntries.Clear();
-                foreach (var evt in events)
-                    EventLogEntries.Add(evt);
-            });
+            var daysBack = SelectedDaysBack;
+            StatusMessage = $"正在获取事件日志 (最近{daysBack}天)...";
+            var events = await Task.Run(() => _eventLogService.GetErrorEvents(daysBack));
 
-            // Performance Analysis
-            if (HardwareInfo != null)
+            StatusMessage = "正在进行性能分析...";
+            var analysis = await Task.Run(() =>
+                _performanceService.AnalyzeSystemPerformance(hardware, events, reliability));
+
+            HardwareInfo = hardware;
+
+            ReliabilityRecords.Clear();
+            foreach (var record in reliability)
             {
-                StatusMessage = "正在进行性能分析...";
-                var eventsList = EventLogEntries.ToList();
-                var reliabilityList = ReliabilityRecords.ToList();
-                
-                var analysis = _performanceService.AnalyzeSystemPerformance(HardwareInfo, eventsList, reliabilityList);
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    PerformanceAnalysis = analysis;
-                });
+                ReliabilityRecords.Add(record);
             }
-        });
 
-        var performanceScore = PerformanceAnalysis?.SystemHealthScore ?? 0;
-        StatusMessage = $"数据加载完成 | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count} | 系统健康评分: {performanceScore:F0}/100";
-        IsLoading = false;
+            EventLogEntries.Clear();
+            foreach (var evt in events)
+            {
+                EventLogEntries.Add(evt);
+            }
+
+            PerformanceAnalysis = analysis;
+
+            var performanceScore = analysis.SystemHealthScore;
+            StatusMessage = $"数据加载完成 | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count} | 系统健康评分: {performanceScore:F0}/100";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"加载失败: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+
+            if (_reloadRequested)
+            {
+                _reloadRequested = false;
+                _ = LoadDataAsync();
+            }
+        }
     }
 
     [RelayCommand]
@@ -119,20 +137,14 @@ public partial class MainViewModel : ObservableObject
             StatusMessage = "正在导出HTML报告...";
             IsLoading = true;
 
-            await Task.Run(() =>
-            {
-                var html = GenerateHtmlReport();
-                var fileName = $"DigYourWindows_Report_{DateTime.Now:yyyyMMdd_HHmmss}.html";
-                var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
-                
-                File.WriteAllText(filePath, html, Encoding.UTF8);
-                
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    StatusMessage = $"报告已导出: {fileName}";
-                    Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
-                });
-            });
+            var html = GenerateHtmlReport();
+            var fileName = $"DigYourWindows_Report_{DateTime.Now:yyyyMMdd_HHmmss}.html";
+            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+
+            await Task.Run(() => File.WriteAllText(filePath, html, Encoding.UTF8));
+
+            StatusMessage = $"报告已导出: {fileName}";
+            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
         }
         catch (Exception ex)
         {

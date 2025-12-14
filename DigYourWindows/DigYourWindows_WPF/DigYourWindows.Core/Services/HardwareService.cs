@@ -7,9 +7,9 @@ public class HardwareService
 {
     private readonly GpuMonitorService _gpuMonitor;
 
-    public HardwareService()
+    public HardwareService(GpuMonitorService gpuMonitor)
     {
-        _gpuMonitor = new GpuMonitorService();
+        _gpuMonitor = gpuMonitor;
     }
 
     public HardwareInfo GetHardwareInfo()

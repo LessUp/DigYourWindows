@@ -9,9 +9,10 @@ namespace DigYourWindows.UI;
 /// </summary>
 public partial class MainWindow : FluentWindow
 {
-    public MainWindow()
+    public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
+        DataContext = viewModel;
         Loaded += MainWindow_Loaded;
     }
 
