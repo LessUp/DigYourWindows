@@ -6,9 +6,9 @@ namespace DigYourWindows.Core.Services;
 
 public class EventLogService
 {
-    public List<Models.EventLogEntry> GetErrorEvents(int daysBack = 3)
+    public List<LogEventData> GetErrorEvents(int daysBack = 3)
     {
-        var events = new List<Models.EventLogEntry>();
+        var events = new List<LogEventData>();
         var cutoffDate = DateTime.Now.AddDays(-daysBack);
 
         try
@@ -27,9 +27,9 @@ public class EventLogService
         return events.OrderByDescending(e => e.TimeGenerated).ToList();
     }
 
-    private List<Models.EventLogEntry> ReadEventLog(string logName, DateTime cutoffDate)
+    private List<LogEventData> ReadEventLog(string logName, DateTime cutoffDate)
     {
-        var entries = new List<Models.EventLogEntry>();
+        var entries = new List<LogEventData>();
         
         try
         {
@@ -45,14 +45,15 @@ public class EventLogService
                     entry.EntryType != EventLogEntryType.Warning)
                     continue;
 
-                entries.Add(new Models.EventLogEntry
+                var instanceId = entry.InstanceId;
+                entries.Add(new LogEventData
                 {
                     TimeGenerated = entry.TimeGenerated,
-                    Source = entry.Source,
+                    SourceName = entry.Source,
                     Message = entry.Message,
                     EventType = entry.EntryType.ToString(),
-                    LogName = logName,
-                    EventId = (int)entry.InstanceId
+                    LogFile = logName,
+                    EventId = instanceId < 0 ? 0u : (uint)Math.Min((ulong)instanceId, uint.MaxValue)
                 });
             }
         }

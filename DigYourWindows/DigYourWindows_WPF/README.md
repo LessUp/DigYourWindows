@@ -78,7 +78,7 @@
 DigYourWindows_WPF/
 ├── DigYourWindows.sln              # 解决方案文件
 ├── DigYourWindows.Core/            # 核心业务逻辑层
-│   ├── Models/                     # 数据模型 (HardwareInfo, EventLogEntry 等)
+│   ├── Models/                     # 数据模型 (StandardizedModels: DiagnosticData/HardwareData 等)
 │   └── Services/                   # 数据采集服务 (HardwareService, ReliabilityService 等)
 └── DigYourWindows.UI/              # WPF 用户界面层
     ├── ViewModels/                 # MVVM ViewModel

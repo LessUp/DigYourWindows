@@ -38,11 +38,17 @@ public record HardwareData
     [JsonPropertyName("cpuBrand")]
     public string CpuBrand { get; init; } = string.Empty;
 
+    [JsonIgnore]
+    public string CpuName => CpuBrand;
+
     [JsonPropertyName("cpuCores")]
     public uint CpuCores { get; init; }
 
     [JsonPropertyName("totalMemory")]
     public ulong TotalMemory { get; init; }
+
+    [JsonIgnore]
+    public long TotalMemoryMB => (long)(TotalMemory / (1024UL * 1024UL));
 
     [JsonPropertyName("disks")]
     public List<DiskInfoData> Disks { get; init; } = new();
@@ -76,6 +82,17 @@ public record DiskInfoData
 
     [JsonPropertyName("availableSpace")]
     public ulong AvailableSpace { get; init; }
+
+    [JsonIgnore]
+    public long TotalSizeGB => (long)(TotalSpace / (1024UL * 1024UL * 1024UL));
+
+    [JsonIgnore]
+    public long FreeSpaceGB => (long)(AvailableSpace / (1024UL * 1024UL * 1024UL));
+
+    [JsonIgnore]
+    public double UsagePercentage => TotalSpace > 0
+        ? (double)(TotalSpace - AvailableSpace) / TotalSpace * 100
+        : 0;
 }
 
 /// <summary>
@@ -91,6 +108,9 @@ public record NetworkAdapterData
 
     [JsonPropertyName("ipAddresses")]
     public List<string> IpAddresses { get; init; } = new();
+
+    [JsonIgnore]
+    public string IpAddress => IpAddresses.Count > 0 ? IpAddresses[0] : string.Empty;
 }
 
 /// <summary>
@@ -139,6 +159,9 @@ public record UsbControllerData
 
     [JsonPropertyName("protocolVersion")]
     public string? ProtocolVersion { get; init; }
+
+    [JsonIgnore]
+    public string Protocol => ProtocolVersion ?? string.Empty;
 }
 
 /// <summary>
@@ -154,6 +177,30 @@ public record GpuInfoData
 
     [JsonPropertyName("videoMemory")]
     public ulong? VideoMemory { get; init; }
+
+    [JsonPropertyName("temperature")]
+    public float Temperature { get; init; }
+
+    [JsonPropertyName("load")]
+    public float Load { get; init; }
+
+    [JsonPropertyName("memoryUsed")]
+    public float MemoryUsed { get; init; }
+
+    [JsonPropertyName("memoryTotal")]
+    public float MemoryTotal { get; init; }
+
+    [JsonPropertyName("coreClock")]
+    public float CoreClock { get; init; }
+
+    [JsonPropertyName("memoryClock")]
+    public float MemoryClock { get; init; }
+
+    [JsonPropertyName("fanSpeed")]
+    public float FanSpeed { get; init; }
+
+    [JsonPropertyName("power")]
+    public float Power { get; init; }
 }
 
 /// <summary>
@@ -172,6 +219,25 @@ public record ReliabilityRecordData
 
     [JsonPropertyName("eventType")]
     public string EventType { get; init; } = string.Empty;
+
+    [JsonPropertyName("recordType")]
+    public int? RecordType { get; init; }
+
+    [JsonIgnore]
+    public DateTime TimeGenerated => Timestamp;
+
+    [JsonIgnore]
+    public string ProductName => SourceName;
+
+    [JsonIgnore]
+    public string RecordTypeDescription => RecordType switch
+    {
+        1 => "应用程序故障",
+        2 => "Windows 故障",
+        3 => "其他故障",
+        null => string.IsNullOrWhiteSpace(EventType) ? "未知" : EventType,
+        _ => "未知"
+    };
 }
 
 /// <summary>
@@ -188,6 +254,9 @@ public record LogEventData
     [JsonPropertyName("sourceName")]
     public string SourceName { get; init; } = string.Empty;
 
+    [JsonIgnore]
+    public string Source => SourceName;
+
     [JsonPropertyName("eventType")]
     public string EventType { get; init; } = string.Empty;
 
@@ -196,6 +265,9 @@ public record LogEventData
 
     [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
+
+    [JsonIgnore]
+    public string LogName => LogFile;
 }
 
 /// <summary>
@@ -217,6 +289,9 @@ public record PerformanceAnalysisData
 
     [JsonPropertyName("diskHealthScore")]
     public double DiskHealthScore { get; init; }
+
+    [JsonPropertyName("systemUptimeDays")]
+    public double? SystemUptimeDays { get; init; }
 
     [JsonPropertyName("criticalIssuesCount")]
     public uint CriticalIssuesCount { get; init; }

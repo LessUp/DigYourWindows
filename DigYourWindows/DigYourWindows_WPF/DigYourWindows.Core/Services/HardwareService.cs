@@ -12,15 +12,15 @@ public class HardwareService
         _gpuMonitor = gpuMonitor;
     }
 
-    public HardwareInfo GetHardwareInfo()
+    public HardwareData GetHardwareInfo()
     {
-        return new HardwareInfo
+        return new HardwareData
         {
             ComputerName = Environment.MachineName,
             OsVersion = Environment.OSVersion.ToString(),
-            CpuName = GetCpuName(),
-            CpuCores = Environment.ProcessorCount,
-            TotalMemoryMB = GetTotalMemoryMB(),
+            CpuBrand = GetCpuName(),
+            CpuCores = (uint)Environment.ProcessorCount,
+            TotalMemory = GetTotalMemoryBytes(),
             Disks = GetDisks(),
             NetworkAdapters = GetNetworkAdapters(),
             UsbDevices = GetUsbDevices(),
@@ -43,38 +43,38 @@ public class HardwareService
         return "Unknown CPU";
     }
 
-    private long GetTotalMemoryMB()
+    private ulong GetTotalMemoryBytes()
     {
         try
         {
             using var searcher = new ManagementObjectSearcher("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem");
             foreach (var obj in searcher.Get())
             {
-                var bytes = Convert.ToInt64(obj["TotalPhysicalMemory"]);
-                return bytes / (1024 * 1024);
+                return Convert.ToUInt64(obj["TotalPhysicalMemory"] ?? 0UL);
             }
         }
         catch { }
-        return 0;
+        return 0UL;
     }
 
-    private List<DiskInfo> GetDisks()
+    private List<DiskInfoData> GetDisks()
     {
-        var disks = new List<DiskInfo>();
+        var disks = new List<DiskInfoData>();
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_LogicalDisk WHERE DriveType = 3");
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Name, FileSystem, Size, FreeSpace FROM Win32_LogicalDisk WHERE DriveType = 3");
             foreach (ManagementObject obj in searcher.Get())
             {
-                var size = Convert.ToInt64(obj["Size"] ?? 0);
-                var freeSpace = Convert.ToInt64(obj["FreeSpace"] ?? 0);
-                
-                disks.Add(new DiskInfo
+                var size = Convert.ToUInt64(obj["Size"] ?? 0UL);
+                var freeSpace = Convert.ToUInt64(obj["FreeSpace"] ?? 0UL);
+
+                disks.Add(new DiskInfoData
                 {
                     Name = obj["Name"]?.ToString() ?? "",
                     FileSystem = obj["FileSystem"]?.ToString() ?? "",
-                    TotalSizeGB = size / (1024 * 1024 * 1024),
-                    FreeSpaceGB = freeSpace / (1024 * 1024 * 1024)
+                    TotalSpace = size,
+                    AvailableSpace = freeSpace
                 });
             }
         }
@@ -82,23 +82,22 @@ public class HardwareService
         return disks;
     }
 
-    private List<NetworkAdapterInfo> GetNetworkAdapters()
+    private List<NetworkAdapterData> GetNetworkAdapters()
     {
-        var adapters = new List<NetworkAdapterInfo>();
+        var adapters = new List<NetworkAdapterData>();
         try
         {
             using var searcher = new ManagementObjectSearcher(
                 "SELECT * FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True");
-            
+
             foreach (ManagementObject obj in searcher.Get())
             {
                 var ipAddresses = obj["IPAddress"] as string[];
-                adapters.Add(new NetworkAdapterInfo
+                adapters.Add(new NetworkAdapterData
                 {
                     Name = obj["Description"]?.ToString() ?? "",
                     MacAddress = obj["MACAddress"]?.ToString() ?? "",
-                    IpAddress = ipAddresses?.FirstOrDefault() ?? "",
-                    Status = "已连接"
+                    IpAddresses = ipAddresses?.ToList() ?? new List<string>()
                 });
             }
         }
@@ -106,22 +105,22 @@ public class HardwareService
         return adapters;
     }
 
-    private List<UsbDeviceInfo> GetUsbDevices()
+    private List<UsbDeviceData> GetUsbDevices()
     {
-        var devices = new List<UsbDeviceInfo>();
+        var devices = new List<UsbDeviceData>();
         try
         {
             using var searcher = new ManagementObjectSearcher(
                 "SELECT DeviceID, Name, Description, Manufacturer FROM Win32_PnPEntity WHERE DeviceID LIKE 'USB%'");
-            
+
             foreach (ManagementObject obj in searcher.Get())
             {
-                devices.Add(new UsbDeviceInfo
+                devices.Add(new UsbDeviceData
                 {
                     DeviceId = obj["DeviceID"]?.ToString() ?? "",
-                    Name = obj["Name"]?.ToString() ?? "",
-                    Description = obj["Description"]?.ToString() ?? "",
-                    Manufacturer = obj["Manufacturer"]?.ToString() ?? ""
+                    Name = obj["Name"]?.ToString(),
+                    Description = obj["Description"]?.ToString(),
+                    Manufacturer = obj["Manufacturer"]?.ToString()
                 });
             }
         }
@@ -129,26 +128,31 @@ public class HardwareService
         return devices;
     }
 
-    private List<UsbControllerInfo> GetUsbControllers()
+    private List<UsbControllerData> GetUsbControllers()
     {
-        var controllers = new List<UsbControllerInfo>();
+        var controllers = new List<UsbControllerData>();
         try
         {
             using var searcher = new ManagementObjectSearcher(
-                "SELECT Name, Manufacturer, Caption FROM Win32_USBController");
-            
+                "SELECT DeviceID, Name, Manufacturer, Caption FROM Win32_USBController");
+
             foreach (ManagementObject obj in searcher.Get())
             {
                 var caption = obj["Caption"]?.ToString() ?? "";
                 var protocol = caption.Contains("3.0") || caption.Contains("3.1") || caption.Contains("xHCI") 
                     ? "USB 3.x" 
                     : "USB 2.0";
-                
-                controllers.Add(new UsbControllerInfo
+
+                var deviceId = obj["DeviceID"]?.ToString();
+                var name = obj["Name"]?.ToString();
+
+                controllers.Add(new UsbControllerData
                 {
-                    Name = obj["Name"]?.ToString() ?? "",
-                    Manufacturer = obj["Manufacturer"]?.ToString() ?? "",
-                    Protocol = protocol
+                    DeviceId = string.IsNullOrWhiteSpace(deviceId) ? (name ?? string.Empty) : deviceId,
+                    Name = name,
+                    Manufacturer = obj["Manufacturer"]?.ToString(),
+                    Caption = caption,
+                    ProtocolVersion = protocol
                 });
             }
         }

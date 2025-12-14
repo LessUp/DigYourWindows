@@ -37,6 +37,13 @@
                               Command="{Binding ExportToHtmlCommand}" 
                               Icon="{ui:SymbolIcon DocumentArrowUp24}"
                               Margin="10,0,0,0"/>
+                    <ui:Button Content="导出JSON" 
+                              Command="{Binding ExportToJsonCommand}" 
+                              Icon="{ui:SymbolIcon DocumentArrowUp24}"
+                              Margin="10,0,0,0"/>
+                    <ui:Button Content="导入JSON" 
+                              Command="{Binding ImportFromJsonCommand}"
+                              Margin="10,0,0,0"/>
                     <ui:Button Content="切换主题" 
                               Command="{Binding ToggleThemeCommand}" 
                               Icon="{ui:SymbolIcon WeatherMoon24}"

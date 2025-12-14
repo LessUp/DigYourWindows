@@ -6,6 +6,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Text.Json;
+using Microsoft.Win32;
 using Wpf.Ui.Appearance;
 
 namespace DigYourWindows.UI.ViewModels;
@@ -19,16 +21,16 @@ public partial class MainViewModel : ObservableObject
     private bool _reloadRequested;
 
     [ObservableProperty]
-    private HardwareInfo? _hardwareInfo;
+    private HardwareData? _hardwareInfo;
 
     [ObservableProperty]
-    private ObservableCollection<ReliabilityRecord> _reliabilityRecords = new();
+    private ObservableCollection<ReliabilityRecordData> _reliabilityRecords = new();
 
     [ObservableProperty]
-    private ObservableCollection<DigYourWindows.Core.Models.EventLogEntry> _eventLogEntries = new();
+    private ObservableCollection<LogEventData> _eventLogEntries = new();
 
     [ObservableProperty]
-    private PerformanceAnalysis? _performanceAnalysis;
+    private PerformanceAnalysisData? _performanceAnalysis;
 
     [ObservableProperty]
     private bool _isLoading;
@@ -81,20 +83,23 @@ public partial class MainViewModel : ObservableObject
         try
         {
             StatusMessage = "正在获取硬件信息...";
-            var hardware = await Task.Run(() => _hardwareService.GetHardwareInfo());
+            var hardwareInfo = await Task.Run(() => _hardwareService.GetHardwareInfo());
 
             StatusMessage = "正在获取可靠性记录...";
-            var reliability = await Task.Run(() => _reliabilityService.GetReliabilityRecords(7));
+            var reliabilityRaw = await Task.Run(() => _reliabilityService.GetReliabilityRecords(7));
 
             var daysBack = SelectedDaysBack;
             StatusMessage = $"正在获取事件日志 (最近{daysBack}天)...";
-            var events = await Task.Run(() => _eventLogService.GetErrorEvents(daysBack));
+            var eventsRaw = await Task.Run(() => _eventLogService.GetErrorEvents(daysBack));
+
+            var reliability = reliabilityRaw.ToList();
+            var events = eventsRaw;
 
             StatusMessage = "正在进行性能分析...";
             var analysis = await Task.Run(() =>
-                _performanceService.AnalyzeSystemPerformance(hardware, events, reliability));
+                _performanceService.AnalyzeSystemPerformance(hardwareInfo, events, reliability));
 
-            HardwareInfo = hardware;
+            HardwareInfo = hardwareInfo;
 
             ReliabilityRecords.Clear();
             foreach (var record in reliability)
@@ -126,6 +131,109 @@ public partial class MainViewModel : ObservableObject
                 _reloadRequested = false;
                 _ = LoadDataAsync();
             }
+        }
+    }
+
+    [RelayCommand]
+    private async Task ImportFromJsonAsync()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = "JSON 文件 (*.json)|*.json|所有文件 (*.*)|*.*",
+            DefaultExt = ".json"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        try
+        {
+            StatusMessage = "正在导入JSON报告...";
+            IsLoading = true;
+
+            var json = await Task.Run(() => File.ReadAllText(dialog.FileName, Encoding.UTF8));
+            var data = JsonSerializer.Deserialize<DiagnosticData>(json);
+
+            if (data == null)
+            {
+                StatusMessage = "导入失败: JSON 解析结果为空";
+                return;
+            }
+
+            HardwareInfo = data.Hardware;
+
+            ReliabilityRecords.Clear();
+            foreach (var record in data.Reliability)
+            {
+                ReliabilityRecords.Add(record);
+            }
+
+            EventLogEntries.Clear();
+            foreach (var evt in data.Events)
+            {
+                EventLogEntries.Add(evt);
+            }
+
+            PerformanceAnalysis = data.Performance;
+
+            StatusMessage = $"JSON已导入 | 采集时间(UTC): {data.CollectedAt:yyyy-MM-dd HH:mm:ss} | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"导入失败: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task ExportToJsonAsync()
+    {
+        try
+        {
+            StatusMessage = "正在导出JSON报告...";
+            IsLoading = true;
+
+            var hardware = HardwareInfo;
+            var performance = PerformanceAnalysis;
+            var reliability = ReliabilityRecords.ToList();
+            var events = EventLogEntries.ToList();
+
+            var data = new DiagnosticData
+            {
+                Hardware = hardware ?? new HardwareData(),
+                Reliability = reliability,
+                Events = events,
+                Performance = performance ?? new PerformanceAnalysisData(),
+                CollectedAt = DateTime.UtcNow
+            };
+
+            var json = JsonSerializer.Serialize(
+                data,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+            var fileName = $"DigYourWindows_Report_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+
+            await Task.Run(() => File.WriteAllText(filePath, json, Encoding.UTF8));
+
+            StatusMessage = $"JSON已导出: {fileName}";
+            Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"导出失败: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -305,7 +413,7 @@ public partial class MainViewModel : ObservableObject
         sb.AppendLine("                <tbody>");
         foreach (var evt in EventLogEntries.Take(100))
         {
-            sb.AppendLine($"                    <tr><td>{evt.TimeGenerated:yyyy-MM-dd HH:mm}</td><td>{evt.Source}</td><td>{evt.EventType}</td><td>{evt.EventId}</td><td>{evt.Message?.Substring(0, Math.Min(evt.Message.Length, 100))}</td></tr>");
+            sb.AppendLine($"                    <tr><td>{evt.TimeGenerated:yyyy-MM-dd HH:mm}</td><td>{evt.SourceName}</td><td>{evt.EventType}</td><td>{evt.EventId}</td><td>{evt.Message?.Substring(0, Math.Min(evt.Message.Length, 100))}</td></tr>");
         }
         sb.AppendLine("                </tbody>");
         sb.AppendLine("            </table>");

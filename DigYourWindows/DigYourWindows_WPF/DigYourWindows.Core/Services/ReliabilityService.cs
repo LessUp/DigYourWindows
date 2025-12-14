@@ -5,9 +5,9 @@ namespace DigYourWindows.Core.Services;
 
 public class ReliabilityService
 {
-    public List<ReliabilityRecord> GetReliabilityRecords(int daysBack = 7)
+    public ReliabilityRecordData[] GetReliabilityRecords(int daysBack = 7)
     {
-        var records = new List<ReliabilityRecord>();
+        var records = new List<ReliabilityRecordData>();
         try
         {
             using var searcher = new ManagementObjectSearcher(
@@ -27,12 +27,22 @@ public class ReliabilityService
                 if (timeGenerated < cutoffDate)
                     continue;
 
-                records.Add(new ReliabilityRecord
+                var recordType = Convert.ToInt32(obj["RecordType"] ?? 0);
+                var recordTypeDescription = recordType switch
                 {
-                    TimeGenerated = timeGenerated,
-                    ProductName = obj["ProductName"]?.ToString() ?? "",
+                    1 => "应用程序故障",
+                    2 => "Windows 故障",
+                    3 => "其他故障",
+                    _ => "未知"
+                };
+
+                records.Add(new ReliabilityRecordData
+                {
+                    Timestamp = timeGenerated,
+                    SourceName = obj["ProductName"]?.ToString() ?? "",
                     Message = obj["Message"]?.ToString() ?? "",
-                    RecordType = Convert.ToInt32(obj["RecordType"] ?? 0)
+                    EventType = recordTypeDescription,
+                    RecordType = recordType
                 });
             }
         }
@@ -40,7 +50,7 @@ public class ReliabilityService
         {
             Console.WriteLine($"获取可靠性记录失败: {ex.Message}");
         }
-        return records.OrderByDescending(r => r.TimeGenerated).ToList();
+        return records.OrderByDescending(r => r.Timestamp).ToArray();
     }
 
     private DateTime ParseWmiDateTime(string wmiDateTime)

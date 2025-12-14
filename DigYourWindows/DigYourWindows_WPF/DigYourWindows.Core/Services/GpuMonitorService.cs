@@ -17,9 +17,9 @@ public class GpuMonitorService : IDisposable
         _computer.Open();
     }
 
-    public List<GpuInfo> GetGpuInfo()
+    public List<GpuInfoData> GetGpuInfo()
     {
-        var gpuList = new List<GpuInfo>();
+        var gpuList = new List<GpuInfoData>();
 
         try
         {
@@ -31,9 +31,11 @@ public class GpuMonitorService : IDisposable
                 {
                     hardware.Update();
 
-                    var gpuInfo = new GpuInfo
+                    var gpuInfo = new GpuInfoData
                     {
                         Name = hardware.Name,
+                        DriverVersion = null,
+                        VideoMemory = null,
                         Temperature = GetSensorValue(hardware, SensorType.Temperature, "GPU Core"),
                         Load = GetSensorValue(hardware, SensorType.Load, "GPU Core"),
                         MemoryUsed = GetSensorValue(hardware, SensorType.SmallData, "GPU Memory Used"),

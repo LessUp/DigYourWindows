@@ -23,6 +23,25 @@
 - 修复编译错误：
   - `ReportException` 静态方法与属性同名冲突（CS0102）。
   - `WmiException.Query` 只读导致无法在工厂方法中赋值（CS0200）。
+ - 统一数据契约（StandardizedModels）：
+   - `HardwareService` 返回 `HardwareData`（bytes/IP 列表等标准字段）。
+   - `GpuMonitorService` 返回 `GpuInfoData`。
+   - `EventLogService` 返回 `LogEventData`。
+   - `ReliabilityService` 返回 `ReliabilityRecordData`。
+   - `PerformanceService` 输入/输出改为 `HardwareData/LogEventData/ReliabilityRecordData/PerformanceAnalysisData`。
+   - `MainViewModel` 直接消费上述统一模型（不再做旧模型映射）。
+   - 删除旧重复模型文件：
+     - `DigYourWindows.Core/Models/HardwareInfo.cs`
+     - `DigYourWindows.Core/Models/PerformanceAnalysis.cs`
+     - `DigYourWindows.Core/Models/EventLogEntry.cs`
+     - `DigYourWindows.Core/Models/ReliabilityRecord.cs`
+   - 验证 `dotnet build` / `dotnet test` 通过。
+ - 增加 JSON 导出：
+   - `MainViewModel` 新增 `ExportToJsonCommand`，导出 `DiagnosticData` 到桌面并自动打开。
+   - `MainWindow` 标题栏新增“导出JSON”按钮。
+ - 增加 JSON 导入：
+   - `MainViewModel` 新增 `ImportFromJsonCommand`，选择 JSON 文件后加载到当前界面。
+   - `MainWindow` 标题栏新增“导入JSON”按钮。
 
 ### 影响
 
