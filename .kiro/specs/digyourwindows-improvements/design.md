@@ -13,266 +13,121 @@
 
 ### 当前架构分析
 
-**Rust CLI 版本：**
-- 使用 `wmic` 命令行工具获取 WMI 数据（已弃用的方式）
-- 单体架构，数据采集和报告生成耦合在一起
-- 缺少错误恢复机制
-- 没有测试覆盖
-
 **WPF GUI 版本：**
-- 使用 `System.Management` 直接访问 WMI（正确方式）
-- MVVM 架构，但缺少服务层抽象
-- 异步操作处理良好
-- 缺少单元测试
+- 使用 `System.Management` 访问 WMI 获取系统与可靠性信息
+- 采用 MVVM，采集/分析逻辑集中在 `DigYourWindows.Core`
+- 通过依赖注入（DI）管理服务生命周期与资源释放
+- 异步加载保证 UI 响应
 
 ### 改进后的架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Presentation Layer                       │
-│  ┌──────────────────┐              ┌──────────────────┐    │
-│  │   Rust CLI       │              │    WPF GUI       │    │
-│  │  (clap + tera)   │              │  (MVVM + WPF-UI) │    │
-│  └──────────────────┘              └──────────────────┘    │
+│                    WPF GUI (MVVM + WPF-UI)                   │
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
 │                      Service Layer                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Hardware   │  │ Reliability  │  │  EventLog    │     │
-│  │   Service    │  │   Service    │  │   Service    │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘     │
-│  ┌──────────────┐  ┌──────────────┐                        │
-│  │ Performance  │  │    Report    │                        │
-│  │   Service    │  │   Service    │                        │
-│  └──────────────┘  └──────────────┘                        │
+│  HardwareService | ReliabilityService | EventLogService      │
+│  PerformanceService | Report Export (HTML/JSON)              │
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
 │                      Data Access Layer                       │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │              WMI Provider (Abstraction)              │  │
-│  │  - Rust: windows-rs crate                            │  │
-│  │  - C#: System.Management                             │  │
-│  └──────────────────────────────────────────────────────┘  │
+│   WMI (System.Management) + Optional HW monitor providers    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 关键改进点
 
-1. **统一的服务层接口**：定义标准的数据采集接口，两个版本都遵循相同的契约
+1. **统一的服务层接口**：在 Core 层定义标准的数据采集/分析接口，UI 只负责展示与交互
 2. **WMI 抽象层**：封装 WMI 访问细节，提供统一的错误处理
-3. **数据模型标准化**：使用相同的 JSON schema 定义数据结构
+3. **数据模型标准化**：使用统一的 JSON schema/标准化模型定义数据结构
 4. **可测试性**：通过依赖注入和接口抽象实现单元测试
 
 ## Components and Interfaces
 
-### 1. WMI Provider (Rust)
+### 1. WMI Access (C#)
 
-**目的**：替换 `wmic` 命令行调用，使用原生 Windows API
+**目的**：在 Core 层集中封装 WMI 查询与错误映射，避免 UI 直接访问 WMI 或依赖 WMIC。
 
-**接口设计**：
+**实现要点**：
 
-```rust
-pub trait WmiProvider {
-    fn query<T: DeserializeOwned>(&self, query: &str) -> Result<Vec<T>, WmiError>;
-    fn get_single<T: DeserializeOwned>(&self, query: &str) -> Result<T, WmiError>;
-}
-
-pub struct WindowsWmiProvider {
-    connection: WmiConnection,
-}
-
-impl WindowsWmiProvider {
-    pub fn new() -> Result<Self, WmiError> {
-        // 使用 windows-rs 初始化 COM 和 WMI 连接
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum WmiError {
-    #[error("Access denied: {0}")]
-    AccessDenied(String),
-    #[error("Query failed: {0}")]
-    QueryFailed(String),
-    #[error("Parse error: {0}")]
-    ParseError(String),
-    #[error("Timeout after {0} seconds")]
-    Timeout(u64),
-}
-```
+- 使用 `System.Management` 执行查询
+- 对常见失败分类并抛出可操作的异常（`WmiException/ServiceException/ReportException`）
+- 采集在后台线程执行，UI 线程只更新绑定状态
 
 ### 2. Hardware Service
 
 **职责**：采集硬件信息（CPU、内存、磁盘、网络、USB、GPU）
 
-**接口**：
+**实现要点**：
 
-```rust
-pub struct HardwareService {
-    wmi: Box<dyn WmiProvider>,
-}
-
-impl HardwareService {
-    pub fn get_hardware_info(&self) -> Result<HardwareData, ServiceError>;
-    pub fn get_cpu_info(&self) -> Result<CpuInfo, ServiceError>;
-    pub fn get_memory_info(&self) -> Result<MemoryInfo, ServiceError>;
-    pub fn get_disk_info(&self) -> Result<Vec<DiskInfo>, ServiceError>;
-    pub fn get_network_adapters(&self) -> Result<Vec<NetworkAdapter>, ServiceError>;
-    pub fn get_usb_devices(&self) -> Result<Vec<UsbDevice>, ServiceError>;
-    pub fn get_gpu_info(&self) -> Result<Vec<GpuInfo>, ServiceError>;
-}
-```
+- 输出统一契约 `HardwareData`
+- GPU 监控由独立服务负责采集并交由 DI 管理生命周期
 
 ### 3. Reliability Service
 
 **职责**：采集和分析 Windows 可靠性记录
 
-**接口**：
+**实现要点**：
 
-```rust
-pub struct ReliabilityService {
-    wmi: Box<dyn WmiProvider>,
-}
-
-impl ReliabilityService {
-    pub fn get_reliability_records(&self, days: i64) -> Result<Vec<ReliabilityRecord>, ServiceError>;
-    pub fn get_reliability_trend(&self, days: i64) -> Result<ReliabilityTrend, ServiceError>;
-    pub fn categorize_failures(&self, records: &[ReliabilityRecord]) -> FailureCategories;
-}
-```
+- 输出统一契约 `ReliabilityRecordData`
+- 对权限不足/查询失败给出明确提示（建议管理员运行等）
 
 ### 4. Event Log Service
 
 **职责**：采集和过滤 Windows 事件日志
 
-**接口**：
+**实现要点**：
 
-```rust
-pub struct EventLogService {
-    wmi: Box<dyn WmiProvider>,
-}
-
-impl EventLogService {
-    pub fn get_error_events(&self, days: i64) -> Result<Vec<LogEvent>, ServiceError>;
-    pub fn get_events_by_source(&self, source: &str, days: i64) -> Result<Vec<LogEvent>, ServiceError>;
-    pub fn get_critical_events(&self, days: i64) -> Result<Vec<LogEvent>, ServiceError>;
-    pub fn analyze_event_patterns(&self, events: &[LogEvent]) -> EventAnalysis;
-}
-```
+- 输出统一契约 `LogEventData`
+- 支持按时间范围过滤（最近 N 天）
 
 ### 5. Performance Service
 
 **职责**：分析系统性能并生成评分和建议
 
-**接口**：
+**实现要点**：
 
-```rust
-pub struct PerformanceService;
-
-impl PerformanceService {
-    pub fn analyze_system_performance(
-        &self,
-        hardware: &HardwareData,
-        events: &[LogEvent],
-        reliability: &[ReliabilityRecord],
-    ) -> PerformanceAnalysis;
-    
-    fn calculate_health_score(&self, ...) -> f64;
-    fn calculate_stability_score(&self, ...) -> f64;
-    fn calculate_performance_score(&self, ...) -> f64;
-    fn generate_recommendations(&self, ...) -> Vec<String>;
-}
-```
+- 输入使用统一契约：`HardwareData`、`LogEventData`、`ReliabilityRecordData`
+- 输出统一契约：`PerformanceAnalysisData`
+- 评分范围约束在 `[0, 100]`
 
 ### 6. Report Service
 
 **职责**：生成各种格式的报告（HTML、JSON）
 
-**接口**：
+**实现要点**：
 
-```rust
-pub struct ReportService {
-    template_engine: Tera,
-}
-
-impl ReportService {
-    pub fn generate_html_report(&self, data: &DiagnosticData, output: &Path) -> Result<(), ReportError>;
-    pub fn generate_json_report(&self, data: &DiagnosticData, output: &Path) -> Result<(), ReportError>;
-    pub fn generate_summary(&self, data: &DiagnosticData) -> String;
-}
-
-pub struct DiagnosticData {
-    pub hardware: HardwareData,
-    pub reliability: Vec<ReliabilityRecord>,
-    pub events: Vec<LogEvent>,
-    pub performance: PerformanceAnalysis,
-    pub collected_at: DateTime<Utc>,
-}
-```
+- 以 `DiagnosticData` 作为统一报告载体
+- 支持导出 HTML 与 JSON
+- 支持从 JSON 导入恢复 UI 展示
 
 ## Data Models
 
 ### 核心数据结构
 
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HardwareData {
-    pub computer_name: String,
-    pub os_version: String,
-    pub cpu_brand: String,
-    pub cpu_cores: u32,
-    pub total_memory: u64,
-    pub disks: Vec<DiskInfo>,
-    pub network_adapters: Vec<NetworkAdapter>,
-    pub usb_devices: Vec<UsbDevice>,
-    pub usb_controllers: Vec<UsbController>,
-    pub gpus: Vec<GpuInfo>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReliabilityRecord {
-    pub timestamp: DateTime<Utc>,
-    pub source_name: String,
-    pub message: String,
-    pub event_type: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LogEvent {
-    pub time_generated: DateTime<Utc>,
-    pub log_file: String,
-    pub source_name: String,
-    pub event_type: String,
-    pub event_id: u32,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PerformanceAnalysis {
-    pub system_health_score: f64,
-    pub stability_score: f64,
-    pub performance_score: f64,
-    pub memory_usage_score: f64,
-    pub disk_health_score: f64,
-    pub critical_issues_count: u32,
-    pub warnings_count: u32,
-    pub recommendations: Vec<String>,
-    pub health_grade: String,
-    pub health_color: String,
-}
-```
+- 标准化数据契约在 `DigYourWindows.Core/Models/StandardizedModels.cs`：
+  - `DiagnosticData`
+  - `HardwareData`
+  - `ReliabilityRecordData`
+  - `LogEventData`
+  - `PerformanceAnalysisData`
 
 ### JSON Schema 定义
 
-为确保两个版本的数据兼容性，定义标准 JSON schema：
+为确保导出/导入数据的一致性，定义标准 JSON schema：
+
+- `DigYourWindows/diagnostic-data-schema.json`
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DiagnosticData",
   "type": "object",
-  "required": ["hardware", "reliability", "events", "performance", "collected_at"],
+  "required": ["hardware", "reliability", "events", "performance", "collectedAt"],
   "properties": {
     "hardware": { "$ref": "#/definitions/HardwareData" },
     "reliability": {
@@ -284,7 +139,7 @@ pub struct PerformanceAnalysis {
       "items": { "$ref": "#/definitions/LogEvent" }
     },
     "performance": { "$ref": "#/definitions/PerformanceAnalysis" },
-    "collected_at": {
+    "collectedAt": {
       "type": "string",
       "format": "date-time"
     }
@@ -381,15 +236,15 @@ pub struct PerformanceAnalysis {
 
 **Validates: Requirements 5.5**
 
-### Property 15: Cross-Version Score Consistency
+### Property 15: Score Determinism
 
-*For any* identical DiagnosticData input, the performance scoring algorithm in Rust CLI and WPF GUI should produce scores that differ by no more than 0.1 points (accounting for floating-point arithmetic differences).
+*For any* identical `DiagnosticData` input, repeated analysis should produce stable scores (allowing for floating-point precision differences).
 
 **Validates: Requirements 6.2**
 
-### Property 16: Cross-Version JSON Compatibility
+### Property 16: JSON Backward Compatibility
 
-*For any* JSON report exported by Rust CLI, the WPF GUI should be able to import and parse it without errors, and vice versa.
+*For any* JSON report exported by the System, the WPF GUI should be able to import and parse it without errors (within supported schema versions).
 
 **Validates: Requirements 6.5**
 
@@ -421,52 +276,10 @@ pub struct PerformanceAnalysis {
 
 ### Error Hierarchy
 
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum DiagnosticError {
-    #[error("WMI error: {0}")]
-    Wmi(#[from] WmiError),
-    
-    #[error("Service error: {0}")]
-    Service(#[from] ServiceError),
-    
-    #[error("Report generation error: {0}")]
-    Report(#[from] ReportError),
-    
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum WmiError {
-    #[error("Access denied. Please run with administrator privileges to access {resource}")]
-    AccessDenied { resource: String },
-    
-    #[error("WMI query timed out after {seconds} seconds")]
-    Timeout { seconds: u64 },
-    
-    #[error("Invalid WMI query: {query}")]
-    InvalidQuery { query: String },
-    
-    #[error("Failed to parse WMI result: {details}")]
-    ParseError { details: String },
-    
-    #[error("WMI connection failed: {details}")]
-    ConnectionFailed { details: String },
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ServiceError {
-    #[error("Failed to collect {service} data: {reason}")]
-    CollectionFailed { service: String, reason: String },
-    
-    #[error("Partial data collection: {successful} succeeded, {failed} failed")]
-    PartialCollection { successful: Vec<String>, failed: Vec<String> },
-    
-    #[error("Invalid data: {details}")]
-    InvalidData { details: String },
-}
-```
+- Use typed exceptions in `DigYourWindows.Core.Exceptions` to categorize failures:
+  - `WmiException` (`WmiErrorType`)
+  - `ServiceException` (`ServiceErrorType`)
+  - `ReportException` (`ReportErrorType`)
 
 ### Error Recovery Strategy
 
@@ -477,28 +290,12 @@ pub enum ServiceError {
 
 ### Logging Strategy
 
-```rust
-pub enum LogLevel {
-    Error,   // System failures that prevent core functionality
-    Warn,    // Partial failures or degraded functionality
-    Info,    // Normal operations and milestones
-    Debug,   // Detailed diagnostic information
-}
-
-// Log to both file and stderr
-// File: %APPDATA%/DigYourWindows/logs/digyourwindows.log
-// Stderr: For immediate user feedback
-```
+- (Planned) Log to file for troubleshooting.
+- File: `%APPDATA%/DigYourWindows/logs/digyourwindows.log`
 
 ## Testing Strategy
 
 ### Unit Testing
-
-**Rust CLI:**
-- Use `cargo test` with standard Rust testing framework
-- Mock WMI provider using trait objects for isolated testing
-- Test each service independently with known input data
-- Focus on edge cases: empty results, malformed data, error conditions
 
 **WPF GUI:**
 - Use xUnit or NUnit for C# testing
@@ -516,34 +313,23 @@ pub enum LogLevel {
 ### Property-Based Testing
 
 **Framework Selection:**
-- **Rust**: Use `proptest` crate (mature, well-documented, good integration with cargo test)
 - **C#**: Use `FsCheck` library (port of QuickCheck, works well with xUnit)
 
 **Configuration:**
 - Each property test should run minimum 100 iterations
-- Use custom generators for domain-specific types (DiagnosticData, HardwareInfo, etc.)
+- Use custom generators for domain-specific types (DiagnosticData, HardwareData, etc.)
 - Implement shrinking for better failure diagnosis
 
 **Property Test Implementation:**
 
-Each property-based test MUST be tagged with a comment referencing the design document:
+ Each property-based test MUST be tagged with a comment referencing the design document:
 
-```rust
-#[test]
-fn prop_score_range_invariant() {
-    // Feature: digyourwindows-improvements, Property 5: Score Range Invariant
-    proptest!(|(hardware in arb_hardware_data(),
-                events in arb_log_events(),
-                reliability in arb_reliability_records())| {
-        let service = PerformanceService::new();
-        let analysis = service.analyze_system_performance(&hardware, &events, &reliability);
-        
-        prop_assert!(analysis.system_health_score >= 0.0 && analysis.system_health_score <= 100.0);
-        prop_assert!(analysis.stability_score >= 0.0 && analysis.stability_score <= 100.0);
-        prop_assert!(analysis.performance_score >= 0.0 && analysis.performance_score <= 100.0);
-        prop_assert!(analysis.memory_usage_score >= 0.0 && analysis.memory_usage_score <= 100.0);
-        prop_assert!(analysis.disk_health_score >= 0.0 && analysis.disk_health_score <= 100.0);
-    });
+```csharp
+// Feature: digyourwindows-improvements, Property 5: Score Range Invariant
+[PropertyTest]
+public void Prop_ScoreRangeInvariant()
+{
+    // 生成输入并调用分析后断言所有评分都在 [0, 100]
 }
 ```
 
@@ -559,14 +345,14 @@ Each correctness property from the design document MUST be implemented as a sing
 - Property 7: JSON round-trip
 - Property 8-10: Data parsing properties
 - Property 11-14: Report generation properties
-- Property 15-16: Cross-version consistency
+- Property 15-16: Score determinism and JSON backward compatibility
 - Property 17-20: Error handling and security properties
 
 ### Integration Testing
 
 **Scope:**
 - End-to-end data collection on real Windows systems
-- Cross-version compatibility (export from Rust, import to WPF)
+- Import/export compatibility (export JSON and import it back)
 - Performance benchmarks with large datasets
 - UI responsiveness testing for WPF GUI
 
@@ -580,65 +366,8 @@ Each correctness property from the design document MUST be implemented as a sing
 
 **Custom Generators for Property Tests:**
 
-```rust
-use proptest::prelude::*;
-
-fn arb_hardware_data() -> impl Strategy<Value = HardwareData> {
-    (
-        "[A-Z]{2,10}",  // computer_name
-        "Windows (10|11).*",  // os_version
-        "Intel|AMD.*",  // cpu_brand
-        1u32..128,  // cpu_cores
-        1024u64..1024*1024*1024,  // total_memory
-        prop::collection::vec(arb_disk_info(), 0..10),
-        prop::collection::vec(arb_network_adapter(), 0..5),
-        prop::collection::vec(arb_usb_device(), 0..20),
-    ).prop_map(|(computer_name, os_version, cpu_brand, cpu_cores, total_memory, disks, network_adapters, usb_devices)| {
-        HardwareData {
-            computer_name,
-            os_version,
-            cpu_brand,
-            cpu_cores,
-            total_memory,
-            disks,
-            network_adapters,
-            usb_devices,
-            usb_controllers: vec![],
-            gpus: vec![],
-        }
-    })
-}
-
-fn arb_log_event() -> impl Strategy<Value = LogEvent> {
-    (
-        arb_datetime(),
-        prop::sample::select(vec!["System", "Application"]),
-        "[A-Za-z0-9-]+",  // source_name
-        prop::sample::select(vec!["Error", "Warning", "Information"]),
-        0u32..65535,  // event_id
-        ".{10,200}",  // message
-    ).prop_map(|(time_generated, log_file, source_name, event_type, event_id, message)| {
-        LogEvent {
-            time_generated,
-            log_file,
-            source_name,
-            event_type,
-            event_id,
-            message,
-        }
-    })
-}
-
-// Generator for malformed data (for Property 6)
-fn arb_malformed_log_event() -> impl Strategy<Value = serde_json::Value> {
-    prop::sample::select(vec![
-        json!({"time_generated": "invalid-date"}),
-        json!({"event_id": "not-a-number"}),
-        json!({"message": null}),
-        json!({}),  // missing all fields
-    ])
-}
-```
+- Use FsCheck `Arbitrary<T>` to generate standardized models (`HardwareData`, `LogEventData`, `ReliabilityRecordData`).
+- Include generators for malformed data (Property 6).
 
 ## Performance Considerations
 
@@ -650,12 +379,6 @@ fn arb_malformed_log_event() -> impl Strategy<Value = serde_json::Value> {
 4. **UI Responsiveness**: WPF GUI should remain responsive during all operations
 
 ### Optimization Strategies
-
-**Rust CLI:**
-- Use `rayon` for parallel WMI queries where safe
-- Stream large result sets instead of loading all into memory
-- Use `Cow<str>` for strings that might not need allocation
-- Profile with `cargo flamegraph` to identify bottlenecks
 
 **WPF GUI:**
 - All data collection on background threads (`Task.Run`)
@@ -679,30 +402,8 @@ fn arb_malformed_log_event() -> impl Strategy<Value = serde_json::Value> {
 
 ### Data Sanitization
 
-```rust
-pub struct SanitizationOptions {
-    pub sanitize_ip_addresses: bool,
-    pub sanitize_computer_names: bool,
-    pub sanitize_user_names: bool,
-    pub sanitize_paths: bool,
-}
-
-impl DiagnosticData {
-    pub fn sanitize(&mut self, options: &SanitizationOptions) {
-        if options.sanitize_computer_names {
-            self.hardware.computer_name = "[COMPUTER_NAME]".to_string();
-        }
-        if options.sanitize_ip_addresses {
-            for adapter in &mut self.hardware.network_adapters {
-                adapter.ip_addresses = adapter.ip_addresses.iter()
-                    .map(|_| "XXX.XXX.XXX.XXX".to_string())
-                    .collect();
-            }
-        }
-        // ... more sanitization
-    }
-}
-```
+- (Planned) Provide options to sanitize sensitive fields (IP addresses, computer names, user names, paths) before export.
+- Replace values with placeholders (e.g., `XXX.XXX.XXX.XXX`, `[COMPUTER_NAME]`, `[USER]`) with user consent.
 
 ### Audit Logging
 
@@ -711,25 +412,6 @@ impl DiagnosticData {
 - Log data export operations with sanitization status
 
 ## Deployment and Distribution
-
-### Rust CLI
-
-**Build Process:**
-```powershell
-# Release build with optimizations
-cargo build --release
-
-# Strip debug symbols for smaller binary
-strip target/release/DigYourWindows_Rust.exe
-
-# Package with templates and README
-.\package.bat
-```
-
-**Distribution:**
-- Single executable + HTML templates in ZIP
-- No installation required
-- Portable - can run from any directory
 
 ### WPF GUI
 
@@ -750,7 +432,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 ## Migration Path
 
 ### Phase 1: Foundation (Weeks 1-2)
-- Implement WMI abstraction layer in Rust
+- Consolidate WMI access and exception mapping in C# Core services
 - Add error types and handling
 - Create data model with JSON schema
 - Set up testing infrastructure
@@ -765,7 +447,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 - Refactor report service
 - Update HTML templates
 - Add JSON import/export
-- Test cross-version compatibility
+- Test import/export compatibility
 
 ### Phase 4: Performance & Polish (Week 6)
 - Performance optimization

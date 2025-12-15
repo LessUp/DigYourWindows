@@ -42,6 +42,8 @@
  - 增加 JSON 导入：
    - `MainViewModel` 新增 `ImportFromJsonCommand`，选择 JSON 文件后加载到当前界面。
    - `MainWindow` 标题栏新增“导入JSON”按钮。
+ - 收敛规范文档（.kiro/specs）：
+   - 更新 `.kiro/specs/digyourwindows-improvements/{requirements,tasks,design}.md`，移除 Rust/CLI 双版本相关描述，统一为纯 C# WPF 版本语境。
 
 ### 影响
 

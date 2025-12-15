@@ -2,38 +2,38 @@
 
 ## Phase 1: Foundation and Infrastructure
 
-- [x] 1. Set up testing infrastructure for both Rust and C# projects
+- [x] 1. Set up testing infrastructure for C# projects
 
 
 
 
 
-  - Install and configure `proptest` crate for Rust property-based testing
   - Install and configure `FsCheck` library for C# property-based testing
-  - Create test directory structure: `tests/unit/`, `tests/property/`, `tests/integration/`
+  - Integrate tests with xUnit/NUnit and ensure CI can run them
+  - Organize test projects and folders: `Unit/`, `Property/`, `Integration/`
   - Configure test runners to execute minimum 100 iterations for property tests
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [x] 2. Implement WMI abstraction layer in Rust
+- [x] 2. Implement WMI access and exception handling in C#
 
 
 
 
 
-  - [x] 2.1 Add `windows-rs` dependency to Cargo.toml with required features (Win32_System_Wmi, Win32_System_Com)
+  - [x] 2.1 Use `System.Management` for WMI access (avoid spawning WMIC)
 
 
-    - Define feature flags for WMI, COM, and Ole automation
+    - Keep WMI queries inside Core services and wrap failures with actionable exceptions
     - _Requirements: 1.1_
   
-  - [x] 2.2 Create `WmiProvider` trait and `WindowsWmiProvider` implementation
+  - [ ] 2.2 (Optional) Extract a minimal WMI query abstraction for testability
 
 
-    - Implement COM initialization and WMI connection management
-    - Add connection pooling to reuse WMI connections
+    - Centralize query execution and error mapping in one place
+    - Avoid duplicated query strings and parsing logic
     - _Requirements: 1.1_
   
-  - [x] 2.3 Implement comprehensive `WmiError` enum with specific error types
+  - [x] 2.3 Implement `WmiException` with specific failure categories
 
     - Add variants for AccessDenied, Timeout, InvalidQuery, ParseError, ConnectionFailed
     - Include actionable error messages with context
@@ -45,30 +45,30 @@
     - **Property 1: Error Type Specificity**
     - **Validates: Requirements 1.3**
   
-  - [x] 2.5 Write property test for error message actionability
+  - [ ] 2.5 Write property test for error message actionability
 
 
     - **Property 2: Error Message Actionability**
     - **Validates: Requirements 1.4, 8.4**
 
-- [ ] 3. Define standardized data models with JSON schema
+- [x] 3. Define standardized data models with JSON schema
 
 
 
 
 
-  - [x] 3.1 Create Rust data structures with Serde serialization
+  - [x] 3.1 Create C# standardized models with JSON serialization
 
 
-    - Define `HardwareData`, `ReliabilityRecord`, `LogEvent`, `PerformanceAnalysis`, `DiagnosticData`
-    - Add `#[serde(rename_all = "camelCase")]` for consistent JSON format
+    - Define `HardwareData`, `ReliabilityRecordData`, `LogEventData`, `PerformanceAnalysisData`, `DiagnosticData`
+    - Add JSON serialization attributes for consistent JSON format
     - _Requirements: 2.1, 2.5_
   
-  - [x] 3.2 Create corresponding C# data models
+  - [x] 3.2 Ensure UI and Core share the same standardized contracts
 
 
-    - Mirror Rust structures in C# with matching property names
-    - Add JSON serialization attributes
+    - Avoid duplicate model definitions across projects
+    - Keep UI bindings stable via alias properties where necessary
     - _Requirements: 2.1, 2.5, 6.2_
   
   - [x] 3.3 Create JSON schema definition file
@@ -78,13 +78,13 @@
     - Add validation rules for required fields and data types
     - _Requirements: 2.1_
   
-  - [x] 3.4 Write property test for schema validation
+  - [ ] 3.4 Write property test for schema validation
 
 
     - **Property 3: Schema Validation Correctness**
     - **Validates: Requirements 2.1**
   
-  - [x] 3.5 Write property test for JSON round-trip serialization
+  - [ ] 3.5 Write property test for JSON round-trip serialization
 
 
     - **Property 7: JSON Serialization Round-Trip**
@@ -96,22 +96,22 @@
 
 
 
-  - [x] 4.1 Create error type hierarchy in Rust
+  - [x] 4.1 Create exception type hierarchy in C#
 
 
-    - Define `DiagnosticError`, `ServiceError`, `ReportError` enums
-    - Use `thiserror` crate for ergonomic error handling
+    - Define `WmiException`, `ServiceException`, `ReportException`
+    - Keep error categories explicit for actionable UX
     - _Requirements: 1.3, 1.4_
   
 
-  - [x] 4.2 Create corresponding exception types in C#
+  - [x] 4.2 Use exception types consistently across Core services and UI
 
     - Define `WmiException`, `ServiceException`, `ReportException` classes
     - Include inner exceptions and detailed messages
     - _Requirements: 1.3_
   
 
-  - [x] 4.3 Implement logging infrastructure
+  - [ ] 4.3 Implement logging infrastructure
 
     - Set up file and console logging with configurable levels
     - Create log directory at `%APPDATA%/DigYourWindows/logs/`
@@ -123,11 +123,11 @@
     - **Property 17: Error Logging Completeness**
     - **Validates: Requirements 7.3**
 
-## Phase 2: Core Service Refactoring (Rust)
+## Phase 2: Core Service Refactoring (C#)
 
-- [ ] 5. Refactor Hardware Service in Rust
-  - [ ] 5.1 Create `HardwareService` struct with WMI provider dependency injection
-    - Implement constructor accepting `Box<dyn WmiProvider>`
+- [x] 5. Refactor Hardware Service in C#
+  - [x] 5.1 Create `HardwareService` with dependency injection
+    - Use constructor injection for dependent services (e.g., GPU monitor)
     - _Requirements: 1.2, 4.1, 4.2, 4.3, 4.5_
   
   - [ ] 5.2 Implement CPU and memory information collection
@@ -158,8 +158,8 @@
     - **Property 10: USB Protocol Version Extraction**
     - **Validates: Requirements 4.5**
 
-- [ ] 6. Refactor Reliability Service in Rust
-  - [ ] 6.1 Create `ReliabilityService` struct with WMI provider
+- [x] 6. Refactor Reliability Service in C#
+  - [x] 6.1 Keep reliability queries and mapping inside `ReliabilityService`
     - Implement methods for querying reliability records by date range
     - _Requirements: 4.4_
   
@@ -177,8 +177,8 @@
     - **Property 9: Reliability Event Categorization**
     - **Validates: Requirements 4.4**
 
-- [ ] 7. Refactor Event Log Service in Rust
-  - [ ] 7.1 Create `EventLogService` struct with WMI provider
+- [x] 7. Refactor Event Log Service in C#
+  - [x] 7.1 Keep event log access and filtering inside `EventLogService`
     - Implement date range filtering for event queries
     - _Requirements: 2.4, 5.5_
   
@@ -201,8 +201,8 @@
     - **Property 14: Partial Collection Resilience**
     - **Validates: Requirements 5.5**
 
-- [ ] 8. Refactor Performance Service in Rust
-  - [ ] 8.1 Create `PerformanceService` struct with scoring algorithms
+- [x] 8. Refactor Performance Service in C#
+  - [x] 8.1 Refactor `PerformanceService` with scoring algorithms
     - Implement constructor and analysis method
     - _Requirements: 2.3, 5.1, 5.2, 6.2_
   
@@ -238,20 +238,19 @@
     - **Property 12: Recommendation Severity Ordering**
     - **Validates: Requirements 5.2**
 
-## Phase 3: Report Generation and Cross-Version Compatibility
+## Phase 3: Report Generation and Import/Export
 
-- [ ] 9. Refactor Report Service in Rust
-  - [ ] 9.1 Create `ReportService` struct with Tera template engine
-    - Initialize template engine with HTML templates
+- [x] 9. Implement report export (HTML/JSON)
+  - [x] 9.1 Implement HTML report export
+    - Keep HTML generation simple and self-contained
     - _Requirements: 1.2, 2.2, 5.4_
   
-  - [ ] 9.2 Implement HTML report generation
-    - Update template to include all diagnostic data sections
+  - [x] 9.2 Ensure HTML report contains all diagnostic data sections
     - Add summary section at the top with critical issues
     - Ensure all non-null fields are rendered
     - _Requirements: 2.2, 5.4_
   
-  - [ ] 9.3 Implement JSON report export
+  - [x] 9.3 Implement JSON report export
     - Serialize `DiagnosticData` to formatted JSON
     - Include metadata (version, timestamp)
     - _Requirements: 2.5, 6.5_
@@ -269,10 +268,9 @@
     - **Property 13: Critical Issues Prominence**
     - **Validates: Requirements 5.4**
 
-- [ ] 10. Update Rust CLI main application
-  - [ ] 10.1 Refactor main.rs to use new service architecture
-    - Replace direct WMI calls with service layer
-    - Implement dependency injection for services
+- [x] 10. Update WPF UI workflow
+  - [x] 10.1 Refactor WPF startup to use dependency injection
+    - Build ServiceProvider in App and create MainWindow via DI
     - _Requirements: 1.1, 1.2_
   
   - [ ] 10.2 Implement privilege level detection
@@ -304,8 +302,7 @@
     - Apply sanitization before export
     - _Requirements: 8.3_
   
-  - [ ] 11.3 Add CLI flag for enabling sanitization
-    - Add `--sanitize` flag to command-line arguments
+  - [ ] 11.3 Add UI option for enabling sanitization
     - Prompt user for confirmation when exporting
     - _Requirements: 8.3_
   
@@ -313,41 +310,40 @@
     - **Property 19: Sensitive Data Sanitization**
     - **Validates: Requirements 8.3**
 
-- [ ] 12. Align WPF GUI with new architecture
-  - [ ] 12.1 Update C# service interfaces to match Rust design
-    - Ensure method signatures are equivalent
-    - Use same error handling patterns
+- [x] 12. Align WPF GUI with the new architecture
+  - [x] 12.1 Ensure Core services expose standardized models
+    - Keep method signatures stable and UI-friendly
+    - Use consistent error handling patterns
     - _Requirements: 6.1, 6.2_
   
-  - [ ] 12.2 Update PerformanceService in C# to use identical scoring algorithm
-    - Port Rust scoring logic to C#
-    - Ensure floating-point calculations match
+  - [x] 12.2 Update PerformanceService in C# to use the standardized scoring algorithm
+    - Ensure calculations are stable and deterministic
     - _Requirements: 6.2_
   
-  - [ ] 12.3 Implement JSON import functionality in WPF GUI
+  - [x] 12.3 Implement JSON import functionality in WPF GUI
     - Add "Import Report" button and command
     - Parse JSON and populate UI with imported data
     - _Requirements: 6.5_
   
-  - [ ] 12.4 Write property test for cross-version score consistency
-    - **Property 15: Cross-Version Score Consistency**
+  - [ ] 12.4 Write property test for score determinism
+    - **Property 15: Score Determinism**
     - **Validates: Requirements 6.2**
   
-  - [ ] 12.5 Write property test for cross-version JSON compatibility
-    - **Property 16: Cross-Version JSON Compatibility**
+  - [ ] 12.5 Write property test for JSON backward compatibility
+    - **Property 16: JSON Backward Compatibility**
     - **Validates: Requirements 6.5**
 
 ## Phase 4: Testing and Quality Assurance
 
 - [ ] 13. Implement custom property test generators
-  - [ ] 13.1 Create Rust generators for all data types
-    - Implement `arb_hardware_data()`, `arb_log_event()`, `arb_reliability_record()`
+  - [ ] 13.1 Create generators for all data types
+    - Implement generators for HardwareData/LogEventData/ReliabilityRecordData
     - Include generators for malformed data
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
   
   - [ ] 13.2 Create C# generators using FsCheck
-    - Mirror Rust generators in C#
-    - Ensure generated data is compatible across versions
+    - Ensure generators align with standardized models
+    - Ensure generated data is compatible with the standardized JSON schema
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
 - [ ] 14. Complete property test coverage
@@ -357,7 +353,7 @@
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   
   - [ ] 14.2 Configure property tests to run 100+ iterations
-    - Update test configuration in Cargo.toml and test projects
+    - Update test configuration in test projects
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   
   - [ ] 14.3 Run full property test suite and fix any failures
@@ -372,7 +368,6 @@
 
 - [ ] 16. Update documentation
   - [ ] 16.1 Add inline documentation to all public APIs
-    - Document all public functions, structs, and traits in Rust
     - Add XML documentation comments to all public C# classes and methods
     - _Requirements: 7.1, 7.2_
   
@@ -382,26 +377,25 @@
     - Provide examples for adding new diagnostic modules
     - _Requirements: 7.2_
   
-  - [ ] 16.3 Update README files for both projects
-    - Document new CLI flags and features
+  - [ ] 16.3 Update README
+    - Document WPF features and report import/export
     - Update build and installation instructions
     - Add troubleshooting section
     - _Requirements: 7.5_
   
   - [ ] 16.4 Create developer setup guide
-    - Document development environment setup for Rust and C#
+    - Document development environment setup for C#/.NET
     - List all dependencies and installation steps
     - Provide quick start guide for contributors
     - _Requirements: 7.5_
 
 - [ ] 17. Performance optimization
-  - [ ] 17.1 Profile Rust CLI with large datasets
-    - Use `cargo flamegraph` to identify bottlenecks
+  - [ ] 17.1 Profile with large datasets
+    - Identify bottlenecks in data collection and report generation
     - Optimize hot paths in data collection and report generation
     - _Requirements: 3.1, 3.3_
   
-  - [ ] 17.2 Implement parallel WMI queries where safe
-    - Use `rayon` for parallel data collection
+  - [ ] 17.2 Implement parallel data collection where safe
     - Ensure thread safety of WMI connections
     - _Requirements: 3.1_
   
@@ -417,9 +411,9 @@
     - Test with both standard user and administrator privileges
     - _Requirements: 8.1, 8.5_
   
-  - [ ] 18.2 Test cross-version compatibility
-    - Export JSON from Rust CLI and import to WPF GUI
-    - Verify scores and data match between versions
+  - [ ] 18.2 Test import/export compatibility
+    - Export JSON and import it back in WPF GUI
+    - Verify scores and data are preserved
     - _Requirements: 6.1, 6.2, 6.5_
   
   - [ ] 18.3 Test error scenarios
