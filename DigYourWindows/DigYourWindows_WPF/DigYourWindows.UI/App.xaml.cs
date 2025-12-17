@@ -45,7 +45,10 @@ public partial class App : Application
         services.AddSingleton<ReportService>();
         services.AddSingleton<DiagnosticCollectorService>();
 
+        services.AddSingleton<CpuMonitorService>();
+        services.AddSingleton<NetworkMonitorService>();
         services.AddSingleton<GpuMonitorService>();
+        services.AddSingleton<DiskSmartService>();
         services.AddSingleton<HardwareService>();
         services.AddSingleton<ReliabilityService>();
         services.AddSingleton<EventLogService>();

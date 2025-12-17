@@ -6,23 +6,44 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Windows.Threading;
 using ScottPlot.WPF;
 using Microsoft.Win32;
 using Wpf.Ui.Appearance;
 
 namespace DigYourWindows.UI.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly DiagnosticCollectorService _collectorService;
     private readonly ReportService _reportService;
+    private readonly CpuMonitorService _cpuMonitorService;
+    private readonly NetworkMonitorService _networkMonitorService;
     private readonly ILogService _log;
+    private readonly DispatcherTimer _cpuMonitorTimer;
     private CancellationTokenSource? _loadCts;
     private DiagnosticData? _currentData;
     private bool _reloadRequested;
 
+    private const int NetworkHistoryCapacity = 60;
+    private long? _lastNetworkBytesReceived;
+    private long? _lastNetworkBytesSent;
+    private DateTimeOffset? _lastNetworkSampleTime;
+    private readonly List<DateTime> _networkHistoryTimes = new();
+    private readonly List<double> _networkHistoryDownload = new();
+    private readonly List<double> _networkHistoryUpload = new();
+
     [ObservableProperty]
     private HardwareData? _hardwareInfo;
+
+    [ObservableProperty]
+    private CpuInfoData _cpuInfo = new();
+
+    [ObservableProperty]
+    private double _networkDownloadMBps;
+
+    [ObservableProperty]
+    private double _networkUploadMBps;
 
     [ObservableProperty]
     private ObservableCollection<ReliabilityRecordData> _reliabilityRecords = new();
@@ -49,16 +70,154 @@ public partial class MainViewModel : ObservableObject
 
     public WpfPlot ReliabilityTrendPlot { get; } = new();
 
+    public WpfPlot NetworkTrafficPlot { get; } = new();
+
     public MainViewModel(
         DiagnosticCollectorService collectorService,
         ReportService reportService,
+        CpuMonitorService cpuMonitorService,
+        NetworkMonitorService networkMonitorService,
         ILogService log)
     {
         _collectorService = collectorService;
         _reportService = reportService;
+        _cpuMonitorService = cpuMonitorService;
+        _networkMonitorService = networkMonitorService;
         _log = log;
 
+        _cpuMonitorTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _cpuMonitorTimer.Tick += CpuMonitorTimer_Tick;
+        _cpuMonitorTimer.Start();
+
+        UpdateCpuInfo();
+        UpdateNetworkTraffic();
+
         UpdateReliabilityTrendPlot();
+        UpdateNetworkTrafficPlot();
+    }
+
+    private void CpuMonitorTimer_Tick(object? sender, EventArgs e)
+    {
+        UpdateCpuInfo();
+        UpdateNetworkTraffic();
+    }
+
+    private void UpdateCpuInfo()
+    {
+        CpuInfo = _cpuMonitorService.GetCpuInfo();
+    }
+
+    private void UpdateNetworkTraffic()
+    {
+        try
+        {
+            var now = DateTimeOffset.Now;
+            var (bytesReceived, bytesSent) = _networkMonitorService.GetTotalBytes();
+
+            if (_lastNetworkSampleTime is null || _lastNetworkBytesReceived is null || _lastNetworkBytesSent is null)
+            {
+                _lastNetworkSampleTime = now;
+                _lastNetworkBytesReceived = bytesReceived;
+                _lastNetworkBytesSent = bytesSent;
+
+                NetworkDownloadMBps = 0d;
+                NetworkUploadMBps = 0d;
+
+                AppendNetworkHistory(now.LocalDateTime, 0d, 0d);
+                UpdateNetworkTrafficPlot();
+                return;
+            }
+
+            var dtSeconds = (now - _lastNetworkSampleTime.Value).TotalSeconds;
+            if (dtSeconds <= 0)
+            {
+                return;
+            }
+
+            var deltaReceived = bytesReceived - _lastNetworkBytesReceived.Value;
+            var deltaSent = bytesSent - _lastNetworkBytesSent.Value;
+
+            if (deltaReceived < 0) deltaReceived = 0;
+            if (deltaSent < 0) deltaSent = 0;
+
+            var downloadMBps = deltaReceived / dtSeconds / 1024d / 1024d;
+            var uploadMBps = deltaSent / dtSeconds / 1024d / 1024d;
+
+            NetworkDownloadMBps = downloadMBps;
+            NetworkUploadMBps = uploadMBps;
+
+            _lastNetworkSampleTime = now;
+            _lastNetworkBytesReceived = bytesReceived;
+            _lastNetworkBytesSent = bytesSent;
+
+            AppendNetworkHistory(now.LocalDateTime, downloadMBps, uploadMBps);
+            UpdateNetworkTrafficPlot();
+        }
+        catch
+        {
+        }
+    }
+
+    private void AppendNetworkHistory(DateTime time, double downloadMBps, double uploadMBps)
+    {
+        _networkHistoryTimes.Add(time);
+        _networkHistoryDownload.Add(downloadMBps);
+        _networkHistoryUpload.Add(uploadMBps);
+
+        while (_networkHistoryTimes.Count > NetworkHistoryCapacity)
+        {
+            _networkHistoryTimes.RemoveAt(0);
+            _networkHistoryDownload.RemoveAt(0);
+            _networkHistoryUpload.RemoveAt(0);
+        }
+    }
+
+    private void UpdateNetworkTrafficPlot()
+    {
+        var plot = NetworkTrafficPlot.Plot;
+        plot.Clear();
+
+        plot.Title("网络流量 (最近60秒)");
+        plot.XLabel("时间");
+        plot.YLabel("MB/s");
+
+        ApplyPlotTheme(plot);
+
+        if (_networkHistoryTimes.Count == 0)
+        {
+            NetworkTrafficPlot.Refresh();
+            return;
+        }
+
+        var xs = _networkHistoryTimes.ToArray();
+        var downYs = _networkHistoryDownload.ToArray();
+        var upYs = _networkHistoryUpload.ToArray();
+
+        var down = plot.Add.Scatter(xs, downYs);
+        down.LegendText = "下载";
+        down.LineWidth = 2;
+        down.MarkerSize = 0;
+
+        var up = plot.Add.Scatter(xs, upYs);
+        up.LegendText = "上传";
+        up.LineWidth = 2;
+        up.MarkerSize = 0;
+
+        plot.Axes.DateTimeTicksBottom();
+        plot.Axes.AutoScale();
+        plot.ShowLegend();
+
+        ApplyPlotTheme(plot);
+        NetworkTrafficPlot.Refresh();
+    }
+
+    public void Dispose()
+    {
+        _cpuMonitorTimer.Stop();
+        _cpuMonitorTimer.Tick -= CpuMonitorTimer_Tick;
     }
 
     partial void OnSelectedDaysBackChanged(int value)
@@ -289,6 +448,7 @@ public partial class MainViewModel : ObservableObject
         
         ApplicationThemeManager.Apply(CurrentTheme);
         UpdateReliabilityTrendPlot();
+        UpdateNetworkTrafficPlot();
         StatusMessage = $"主题已切换为: {(CurrentTheme == ApplicationTheme.Dark ? "深色" : "浅色")}";
     }
 

@@ -14,6 +14,7 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
         DataContext = viewModel;
         Loaded += MainWindow_Loaded;
+        Closed += MainWindow_Closed;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -22,6 +23,14 @@ public partial class MainWindow : FluentWindow
         if (DataContext is MainViewModel viewModel)
         {
             await viewModel.LoadDataCommand.ExecuteAsync(null);
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        if (DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
     }
 }

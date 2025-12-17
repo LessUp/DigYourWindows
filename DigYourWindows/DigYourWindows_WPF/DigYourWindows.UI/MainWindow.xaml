@@ -216,9 +216,18 @@
                             <!-- Placeholder for future metrics -->
                             <ui:Card Grid.Column="3" Margin="5">
                                 <StackPanel Margin="10">
-                                    <TextBlock Text="CPU 温度" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
-                                    <TextBlock FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5">
-                                        <Run Text="N/A"/>
+                                    <TextBlock Text="CPU 实时" FontWeight="SemiBold" Foreground="Gray" HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,5">
+                                        <TextBlock Text="{Binding CpuInfo.Temperature, StringFormat='{}{0:F1}'}" FontSize="20" FontWeight="Bold"/>
+                                        <TextBlock Text="°C" FontSize="14" VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                                    </StackPanel>
+                                    <TextBlock FontSize="12" Foreground="Gray" HorizontalAlignment="Center">
+                                        <Run Text="负载 "/>
+                                        <Run Text="{Binding CpuInfo.Load, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text="%  "/>
+                                        <Run Text="频率 "/>
+                                        <Run Text="{Binding CpuInfo.Clock, StringFormat='{}{0:F0}'}"/>
+                                        <Run Text=" MHz"/>
                                     </TextBlock>
                                 </StackPanel>
                             </ui:Card>
@@ -241,6 +250,42 @@
                             </StackPanel>
                         </ui:Card>
                     </Grid>
+                </ui:CardExpander>
+
+                <ui:CardExpander Header="网络流量监控" 
+                                Icon="{ui:SymbolIcon ChartMultiple24}" 
+                                IsExpanded="True" 
+                                Margin="0,10,0,0">
+                    <StackPanel Margin="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <ui:Card Grid.Column="0" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="下载" FontWeight="SemiBold" Foreground="Gray"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" Margin="0,5,0,0">
+                                        <Run Text="{Binding NetworkDownloadMBps, StringFormat='{}{0:F2}'}"/>
+                                        <Run Text=" MB/s" FontSize="12"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+
+                            <ui:Card Grid.Column="1" Margin="5">
+                                <StackPanel Margin="10">
+                                    <TextBlock Text="上传" FontWeight="SemiBold" Foreground="Gray"/>
+                                    <TextBlock FontSize="20" FontWeight="Bold" Margin="0,5,0,0">
+                                        <Run Text="{Binding NetworkUploadMBps, StringFormat='{}{0:F2}'}"/>
+                                        <Run Text=" MB/s" FontSize="12"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ui:Card>
+                        </Grid>
+
+                        <ContentControl Content="{Binding NetworkTrafficPlot, Mode=OneTime}" Height="220" Margin="5"/>
+                    </StackPanel>
                 </ui:CardExpander>
 
                 <!-- GPU Monitoring -->
@@ -401,6 +446,25 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <TextBlock Text="磁盘 SMART" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,10"
+                                   Visibility="{Binding HardwareInfo.DiskSmart.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
+                        <DataGrid ItemsSource="{Binding HardwareInfo.DiskSmart}"
+                                 AutoGenerateColumns="False"
+                                 IsReadOnly="True"
+                                 MaxHeight="250"
+                                 Visibility="{Binding HardwareInfo.DiskSmart.Count, Converter={StaticResource CountToVisibilityConverter}}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="名称" Binding="{Binding FriendlyName}" Width="*"/>
+                                <DataGridTextColumn Header="介质" Binding="{Binding MediaTypeDescription}" Width="70"/>
+                                <DataGridTextColumn Header="接口" Binding="{Binding BusTypeDescription}" Width="80"/>
+                                <DataGridTextColumn Header="健康" Binding="{Binding HealthStatusDescription}" Width="70"/>
+                                <DataGridTextColumn Header="温度" Binding="{Binding Temperature, StringFormat='{}{0}°C'}" Width="70"/>
+                                <DataGridTextColumn Header="磨损" Binding="{Binding Wear, StringFormat='{}{0}%'}" Width="70"/>
+                                <DataGridTextColumn Header="通电" Binding="{Binding PowerOnHours, StringFormat='{}{0}h'}" Width="70"/>
+                                <DataGridTextColumn Header="容量" Binding="{Binding SizeGB, StringFormat='{}{0} GB'}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
 
                         <!-- Network Adapters -->
                         <TextBlock Text="网络适配器" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,10"/>
