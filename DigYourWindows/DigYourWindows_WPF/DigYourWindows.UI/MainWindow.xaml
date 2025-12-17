@@ -309,11 +309,27 @@
                     </ItemsControl>
                 </ui:CardExpander>
 
-                <!-- Reliability Records -->
-                <ui:CardExpander Header="{Binding ReliabilityRecords.Count, StringFormat='可靠性记录 (最近7天) - {0} 条'}" 
+                <!-- Reliability Trend -->
+                <ui:CardExpander Header="可靠性趋势" 
                                 Icon="{ui:SymbolIcon ChartMultiple24}" 
+                                IsExpanded="True" 
+                                Margin="0,10,0,0">
+                    <ContentControl Content="{Binding ReliabilityTrendPlot, Mode=OneTime}" Height="220" Margin="10"/>
+                </ui:CardExpander>
+
+                <!-- Reliability Records -->
+                <ui:CardExpander Icon="{ui:SymbolIcon ChartMultiple24}" 
                                 IsExpanded="False" 
                                 Margin="0,10,0,0">
+                    <ui:CardExpander.Header>
+                        <TextBlock>
+                            <Run Text="可靠性记录 (最近"/>
+                            <Run Text="{Binding SelectedDaysBack}"/>
+                            <Run Text="天) - "/>
+                            <Run Text="{Binding ReliabilityRecords.Count}"/>
+                            <Run Text=" 条"/>
+                        </TextBlock>
+                    </ui:CardExpander.Header>
                     <DataGrid ItemsSource="{Binding ReliabilityRecords}" 
                              AutoGenerateColumns="False" 
                              IsReadOnly="True"

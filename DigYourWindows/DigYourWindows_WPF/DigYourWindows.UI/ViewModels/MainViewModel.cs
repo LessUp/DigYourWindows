@@ -6,7 +6,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Text.Json;
+using ScottPlot.WPF;
 using Microsoft.Win32;
 using Wpf.Ui.Appearance;
 
@@ -47,6 +47,8 @@ public partial class MainViewModel : ObservableObject
 
     public List<int> AvailableDays { get; } = new() { 1, 3, 7, 30 };
 
+    public WpfPlot ReliabilityTrendPlot { get; } = new();
+
     public MainViewModel(
         DiagnosticCollectorService collectorService,
         ReportService reportService,
@@ -55,6 +57,8 @@ public partial class MainViewModel : ObservableObject
         _collectorService = collectorService;
         _reportService = reportService;
         _log = log;
+
+        UpdateReliabilityTrendPlot();
     }
 
     partial void OnSelectedDaysBackChanged(int value)
@@ -108,6 +112,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             PerformanceAnalysis = result.Data.Performance;
+
+            UpdateReliabilityTrendPlot();
 
             if (result.Warnings.Count > 0)
             {
@@ -184,6 +190,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             PerformanceAnalysis = data.Performance;
+
+            UpdateReliabilityTrendPlot();
 
             StatusMessage = $"JSON已导入 | 采集时间(UTC): {data.CollectedAt:yyyy-MM-dd HH:mm:ss} | 可靠性记录: {ReliabilityRecords.Count} | 错误事件: {EventLogEntries.Count}";
         }
@@ -280,6 +288,125 @@ public partial class MainViewModel : ObservableObject
             : ApplicationTheme.Dark;
         
         ApplicationThemeManager.Apply(CurrentTheme);
+        UpdateReliabilityTrendPlot();
         StatusMessage = $"主题已切换为: {(CurrentTheme == ApplicationTheme.Dark ? "深色" : "浅色")}";
+    }
+
+    private void UpdateReliabilityTrendPlot()
+    {
+        var plot = ReliabilityTrendPlot.Plot;
+        plot.Clear();
+
+        plot.Title("可靠性趋势");
+        plot.XLabel("日期");
+        plot.YLabel("记录数");
+
+        var records = ReliabilityRecords.ToList();
+        if (records.Count == 0)
+        {
+            ApplyPlotTheme(plot);
+            ReliabilityTrendPlot.Refresh();
+            return;
+        }
+
+        var endDate = DateTime.Today;
+        var startDate = endDate.AddDays(-(SelectedDaysBack - 1));
+        if (SelectedDaysBack <= 0)
+        {
+            startDate = records.Min(x => x.Timestamp.Date);
+        }
+
+        var days = Enumerable
+            .Range(0, (endDate - startDate).Days + 1)
+            .Select(i => startDate.AddDays(i))
+            .ToArray();
+
+        var totalYs = days
+            .Select(day => (double)records.Count(r => r.Timestamp.Date == day))
+            .ToArray();
+
+        var hasSeries = false;
+        var total = plot.Add.Scatter(days, totalYs);
+        total.LegendText = "总计";
+        total.LineWidth = 3;
+        total.MarkerSize = 5;
+        hasSeries = true;
+
+        var categories = new[]
+        {
+            new { Key = 1, Name = "应用程序故障" },
+            new { Key = 2, Name = "Windows 故障" },
+            new { Key = 3, Name = "其他故障" },
+            new { Key = 0, Name = "未知" }
+        };
+
+        foreach (var cat in categories)
+        {
+            double[] ys = cat.Key == 0
+                ? days
+                    .Select(day => (double)records.Count(r =>
+                        (!r.RecordType.HasValue || (r.RecordType is not 1 and not 2 and not 3)) &&
+                        r.Timestamp.Date == day))
+                    .ToArray()
+                : days
+                    .Select(day => (double)records.Count(r =>
+                        r.RecordType == cat.Key &&
+                        r.Timestamp.Date == day))
+                    .ToArray();
+
+            if (ys.All(y => y == 0))
+            {
+                continue;
+            }
+
+            var series = plot.Add.Scatter(days, ys);
+            series.LegendText = cat.Name;
+            series.LineWidth = 2;
+            series.MarkerSize = 4;
+            hasSeries = true;
+        }
+
+        plot.Axes.DateTimeTicksBottom();
+        plot.Axes.AutoScale();
+
+        if (hasSeries)
+        {
+            plot.ShowLegend();
+        }
+
+        ApplyPlotTheme(plot);
+        ReliabilityTrendPlot.Refresh();
+    }
+
+    private void ApplyPlotTheme(ScottPlot.Plot plot)
+    {
+        if (CurrentTheme == ApplicationTheme.Dark)
+        {
+            plot.Add.Palette = new ScottPlot.Palettes.Penumbra();
+
+            plot.FigureBackground.Color = ScottPlot.Color.FromHex("#181818");
+            plot.DataBackground.Color = ScottPlot.Color.FromHex("#1f1f1f");
+
+            plot.Axes.Color(ScottPlot.Color.FromHex("#d7d7d7"));
+            plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#404040");
+
+            plot.Legend.BackgroundColor = ScottPlot.Color.FromHex("#404040");
+            plot.Legend.FontColor = ScottPlot.Color.FromHex("#d7d7d7");
+            plot.Legend.OutlineColor = ScottPlot.Color.FromHex("#d7d7d7");
+        }
+        else
+        {
+            plot.Add.Palette = new ScottPlot.Palettes.Category10();
+
+            plot.FigureBackground.Color = ScottPlot.Color.FromHex("#ffffff");
+            plot.DataBackground.Color = ScottPlot.Color.FromHex("#ffffff");
+
+            plot.Axes.Color(ScottPlot.Color.FromHex("#333333"));
+            plot.Grid.MajorLineColor = ScottPlot.Color.FromHex("#e0e0e0");
+
+            plot.Legend.BackgroundColor = ScottPlot.Color.FromHex("#ffffff");
+            plot.Legend.FontColor = ScottPlot.Color.FromHex("#333333");
+            plot.Legend.OutlineColor = ScottPlot.Color.FromHex("#333333");
+        }
     }
 }

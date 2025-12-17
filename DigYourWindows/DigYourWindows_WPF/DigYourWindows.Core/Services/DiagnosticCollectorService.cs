@@ -49,7 +49,7 @@ public class DiagnosticCollectorService
         List<ReliabilityRecordData> reliability;
         try
         {
-            var reliabilityRaw = await Task.Run(() => _reliabilityService.GetReliabilityRecords(7), cancellationToken);
+            var reliabilityRaw = await Task.Run(() => _reliabilityService.GetReliabilityRecords(daysBack), cancellationToken);
             reliability = reliabilityRaw.ToList();
         }
         catch (Exception ex)
