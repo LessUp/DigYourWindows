@@ -41,6 +41,10 @@ public partial class App : Application
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainViewModel>();
 
+        services.AddSingleton<ILogService, FileLogService>();
+        services.AddSingleton<ReportService>();
+        services.AddSingleton<DiagnosticCollectorService>();
+
         services.AddSingleton<GpuMonitorService>();
         services.AddSingleton<HardwareService>();
         services.AddSingleton<ReliabilityService>();
